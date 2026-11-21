@@ -1,0 +1,3290 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>星屿 OS</title>
+<style>
+/* ============ 设计令牌 ============ */
+:root{
+  --fs:15px;
+  --status-h:44px;
+  --bg:#f2f2f7; --bg2:#ffffff;
+  --text:#0b0b0f; --text2:#8a8a8e; --text3:#b6b6bd;
+  --line:rgba(60,60,67,.12);
+  --card:#ffffff; --card2:#f4f4f7;
+  --nav-bg:rgba(247,247,250,.92);
+  --tint:#0a84ff; --tint-soft:rgba(10,132,255,.12);
+  --green:#34c759; --red:#ff3b30; --orange:#ff9500; --purple:#af52de;
+  --r-sm:10px; --r:16px; --r-lg:24px;
+  --sh:0 4px 16px rgba(0,0,0,.08);
+  --sh-lg:0 18px 50px rgba(0,0,0,.28);
+  --ease:cubic-bezier(.32,.72,0,1);
+  --dur:280ms;
+}
+[data-theme="dark"]{
+  --bg:#000; --bg2:#1c1c1e; --text:#fff; --text2:#8e8e93; --text3:#5a5a5f;
+  --line:rgba(255,255,255,.13); --card:#1c1c1e; --card2:#2c2c2e;
+  --nav-bg:rgba(28,28,30,.9); --tint:#0a84ff; --tint-soft:rgba(10,132,255,.18);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;height:100%;overflow:hidden;
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+  background:#0b0b12;}
+#stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(circle at 50% 18%,#26263a 0%,#0b0b12 68%);}
+#phone{position:relative;width:390px;height:844px;border-radius:46px;background:#000;
+  box-shadow:0 30px 80px rgba(0,0,0,.75),0 0 0 10px #1a1a1e,0 0 0 12px #303036;
+  overflow:hidden;transform-origin:center center;flex:0 0 auto;}
+@media (max-width:520px),(max-height:700px){
+  #phone{width:100vw;height:100vh;border-radius:0;box-shadow:none;}
+  #stage{background:#000;}
+}
+#screen{position:absolute;inset:0;overflow:hidden;background:var(--bg);color:var(--text);
+  font-size:var(--fs);line-height:1.45;-webkit-font-smoothing:antialiased;
+  display:flex;flex-direction:column;touch-action:pan-y;}
+button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:pointer;}
+input,textarea{font:inherit;color:inherit;}
+svg.ic{width:1em;height:1em;fill:currentColor;display:block;flex:0 0 auto;}
+
+/* ============ 壁纸 ============ */
+#wallpaper{position:absolute;inset:0;z-index:0;transition:background .5s var(--ease);
+  background:linear-gradient(160deg,#5b8def 0%,#8f6ef0 45%,#f0a6ca 100%);}
+#wallpaper::after{content:"";position:absolute;inset:0;
+  background:radial-gradient(circle at 25% 15%,rgba(255,255,255,.35),transparent 45%),
+             radial-gradient(circle at 80% 80%,rgba(255,255,255,.18),transparent 50%);}
+
+/* ============ 状态栏 ============ */
+#statusbar{position:absolute;top:0;left:0;right:0;z-index:40;
+  height:calc(var(--status-h) + env(safe-area-inset-top));
+  padding:env(safe-area-inset-top) 22px 0;
+  display:flex;align-items:center;justify-content:space-between;
+  font-size:13px;font-weight:600;pointer-events:none;
+  color:var(--text);text-shadow:0 1px 2px rgba(0,0,0,.06);}
+.sb-right{display:flex;align-items:center;gap:5px;font-size:13px;}
+.sb-right .ic{font-size:14px;}
+.batt{display:flex;align-items:center;gap:3px;}
+.batt-box{width:22px;height:11px;border:1.3px solid currentColor;border-radius:3px;position:relative;opacity:.9;}
+.batt-box::after{content:"";position:absolute;right:-3.5px;top:3px;width:2px;height:5px;background:currentColor;border-radius:0 1px 1px 0;}
+.batt-fill{position:absolute;inset:1.4px;width:78%;background:currentColor;border-radius:1.5px;}
+
+/* ============ 锁屏 ============ */
+#lock-screen{position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;
+  padding:calc(var(--status-h) + env(safe-area-inset-top) + 26px) 24px 30px;
+  color:#fff;transition:transform .45s var(--ease),opacity .35s;
+  text-shadow:0 2px 14px rgba(0,0,0,.35);}
+#lock-screen.hide{transform:translateY(-100%);opacity:0;pointer-events:none;}
+.lock-time{font-size:74px;font-weight:250;letter-spacing:-3px;line-height:1;}
+.lock-date{font-size:16px;opacity:.92;margin-top:8px;font-weight:500;}
+.lock-notifs{margin-top:auto;display:flex;flex-direction:column;gap:9px;}
+.lock-notif{background:rgba(255,255,255,.22);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border-radius:16px;padding:10px 13px;font-size:13px;display:flex;gap:9px;align-items:flex-start;}
+.lock-notif .dot{width:8px;height:8px;border-radius:50%;background:#fff;margin-top:6px;flex:0 0 auto;opacity:.9;}
+.lock-hint{text-align:center;font-size:13px;opacity:.8;margin-top:18px;animation:bob 2.2s ease-in-out infinite;}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+#lock-keypad{position:absolute;inset:0;z-index:22;display:none;flex-direction:column;
+  align-items:center;justify-content:center;gap:18px;color:#fff;
+  background:rgba(0,0,0,.34);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);}
+#lock-keypad.show{display:flex;}
+.pw-dots{display:flex;gap:14px;margin-bottom:6px;}
+.pw-dot{width:12px;height:12px;border-radius:50%;border:1.6px solid #fff;transition:background .18s;}
+.pw-dot.on{background:#fff;}
+.pw-pad{display:grid;grid-template-columns:repeat(3,72px);gap:14px;}
+.pw-key{width:72px;height:72px;border-radius:50%;background:rgba(255,255,255,.2);
+  color:#fff;font-size:26px;font-weight:400;display:grid;place-items:center;transition:transform .12s,background .12s;}
+.pw-key:active{transform:scale(.92);background:rgba(255,255,255,.36);}
+.pw-key.blank{background:transparent;pointer-events:none;}
+
+/* ============ 桌面 ============ */
+#home{position:absolute;inset:0;z-index:1;display:flex;flex-direction:column;
+  padding-top:calc(var(--status-h) + env(safe-area-inset-top));
+  opacity:1;transition:opacity .3s,transform .35s var(--ease);}
+#home.hide{opacity:0;pointer-events:none;transform:scale(.96);}
+#dpages{flex:1;display:flex;will-change:transform;transition:transform .34s var(--ease);}
+#dpages.dragging{transition:none;}
+.dpage{flex:0 0 100%;width:100%;padding:6px 16px 4px;overflow-y:auto;overflow-x:hidden;}
+.widget{display:flex;justify-content:space-between;align-items:center;
+  background:rgba(255,255,255,.24);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border-radius:22px;padding:16px 18px;color:#fff;margin:4px 2px 18px;
+  box-shadow:0 6px 20px rgba(0,0,0,.12);text-shadow:0 1px 8px rgba(0,0,0,.2);}
+.w-time{font-size:38px;font-weight:300;letter-spacing:-1.5px;line-height:1;}
+.w-date{font-size:12px;opacity:.9;margin-top:5px;}
+.w-right{text-align:right;}
+.w-temp{font-size:30px;font-weight:300;line-height:1;}
+.w-city{font-size:12px;opacity:.9;margin-top:5px;}
+.icon-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px 4px;}
+.app-icon{display:flex;flex-direction:column;align-items:center;gap:6px;padding:2px 0;
+  color:#fff;font-size:11px;text-shadow:0 1px 3px rgba(0,0,0,.45);
+  transition:transform .16s var(--ease);}
+.app-icon:active{transform:scale(.9);}
+.app-icon .glyph{width:58px;height:58px;border-radius:16px;display:grid;place-items:center;
+  font-size:28px;color:#fff;box-shadow:0 5px 14px rgba(0,0,0,.24),inset 0 1px 0 rgba(255,255,255,.25);
+  position:relative;overflow:hidden;}
+.app-icon .glyph::after{content:"";position:absolute;inset:0;
+  background:linear-gradient(180deg,rgba(255,255,255,.22),transparent 55%);}
+.app-icon .label{max-width:72px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.badge{position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;border-radius:9px;
+  background:var(--red);color:#fff;font-size:10px;font-weight:600;display:grid;place-items:center;
+  padding:0 5px;z-index:2;box-shadow:0 1px 4px rgba(0,0,0,.3);}
+#dots{display:flex;justify-content:center;gap:7px;padding:8px 0 4px;}
+.dot-ind{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.42);transition:background .25s;}
+.dot-ind.on{background:#fff;}
+#dock{margin:0 10px calc(10px + env(safe-area-inset-bottom));padding:10px 8px;
+  border-radius:30px;display:flex;justify-content:space-around;
+  background:rgba(255,255,255,.22);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  box-shadow:0 8px 26px rgba(0,0,0,.16);}
+#dock .app-icon .label{display:none;}
+
+/* ============ 页面 / 路由 ============ */
+#pages-layer{position:absolute;inset:0;z-index:5;pointer-events:none;}
+.page{position:absolute;inset:0;pointer-events:auto;background:var(--bg);color:var(--text);
+  display:flex;flex-direction:column;overflow:hidden;
+  padding-top:calc(var(--status-h) + env(safe-area-inset-top));
+  transform:translateX(100%);transition:transform var(--dur) var(--ease),opacity var(--dur);}
+.page.in{transform:translateX(0);}
+.page.out{transform:translateX(100%);}
+.page.behind{transform:translateX(-24%);opacity:.75;}
+.nav{display:flex;align-items:center;gap:8px;padding:6px 10px 10px;min-height:46px;
+  position:relative;background:var(--bg);z-index:2;}
+.nav-btn{width:36px;height:36px;display:grid;place-items:center;border-radius:50%;
+  font-size:20px;color:var(--tint);flex:0 0 auto;transition:background .18s;}
+.nav-btn:active{background:var(--tint-soft);}
+.nav-title{flex:1;font-size:17px;font-weight:600;text-align:center;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 4px;}
+.nav-right{min-width:36px;display:flex;justify-content:flex-end;}
+.page-body{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding-bottom:26px;}
+.page-body::-webkit-scrollbar{width:0;}
+
+/* 通用组件 */
+.pad{padding:0 16px;}
+.section-title{font-size:12px;color:var(--text2);font-weight:600;letter-spacing:.4px;
+  padding:18px 16px 8px;text-transform:uppercase;}
+.list{background:var(--card);border-radius:var(--r);margin:0 16px;overflow:hidden;}
+.list.flat{margin:0;border-radius:0;background:transparent;}
+.list-item{display:flex;align-items:center;gap:12px;padding:12px 14px;min-height:56px;
+  border-bottom:1px solid var(--line);position:relative;transition:background .16s;}
+.list-item:last-child{border-bottom:0;}
+.list-item:active{background:var(--card2);}
+.li-main{flex:1;min-width:0;}
+.li-title{font-size:15px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.li-sub{font-size:12.5px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px;}
+.li-time{font-size:11.5px;color:var(--text3);flex:0 0 auto;align-self:flex-start;margin-top:3px;}
+.avatar{width:44px;height:44px;border-radius:50%;flex:0 0 auto;display:grid;place-items:center;
+  color:#fff;font-weight:600;font-size:17px;background:hsl(var(--h,200) 62% 55%);}
+.avatar.sm{width:32px;height:32px;font-size:13px;}
+.avatar.lg{width:64px;height:64px;font-size:24px;}
+.btn{border-radius:12px;padding:10px 16px;font-size:14px;font-weight:600;
+  background:var(--card2);color:var(--text);transition:transform .14s var(--ease),opacity .14s;
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:40px;}
+.btn:active{transform:scale(.96);opacity:.85;}
+.btn.primary{background:var(--tint);color:#fff;}
+.btn.danger{background:var(--red);color:#fff;}
+.btn.ghost{background:var(--card2);color:var(--tint);}
+.btn.wide{width:100%;margin-top:14px;min-height:46px;}
+.btn.sm{padding:6px 12px;min-height:32px;font-size:12.5px;border-radius:9px;}
+.field{width:100%;background:var(--card2);border:1px solid var(--line);border-radius:11px;
+  padding:11px 13px;font-size:15px;outline:none;transition:border-color .18s;resize:vertical;}
+.field:focus{border-color:var(--tint);}
+.empty{text-align:center;color:var(--text2);font-size:14px;padding:48px 24px;}
+.empty .big{font-size:34px;display:block;margin-bottom:10px;opacity:.5;}
+.row{display:flex;gap:10px;align-items:center;}
+.spacer{flex:1;}
+.tag{font-size:11px;padding:2px 8px;border-radius:20px;background:var(--tint-soft);color:var(--tint);font-weight:600;}
+
+/* 聊天气泡 */
+.chat-scroll{flex:1;overflow-y:auto;padding:10px 14px 8px;-webkit-overflow-scrolling:touch;}
+.bubble-row{display:flex;margin-bottom:12px;align-items:flex-end;gap:8px;}
+.bubble-row.me{flex-direction:row-reverse;}
+.bubble{max-width:74%;padding:9px 13px;border-radius:17px;font-size:14.5px;word-break:break-word;
+  background:var(--card);box-shadow:0 1px 2px rgba(0,0,0,.05);position:relative;line-height:1.42;}
+.bubble-row.me .bubble{background:var(--tint);color:#fff;}
+.bubble-row.them .bubble{border-bottom-left-radius:5px;}
+.bubble-row.me .bubble{border-bottom-right-radius:5px;}
+.bubble .meta{font-size:10.5px;opacity:.6;margin-top:4px;text-align:right;}
+.bubble.img{width:150px;height:110px;padding:0;overflow:hidden;border-radius:14px;}
+.chat-time{text-align:center;font-size:11px;color:var(--text3);margin:10px 0;}
+.chat-inputbar{display:flex;gap:8px;align-items:center;padding:8px 12px calc(10px + env(safe-area-inset-bottom));
+  background:var(--nav-bg);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border-top:1px solid var(--line);}
+.chat-input{flex:1;background:var(--card2);border-radius:19px;padding:10px 14px;font-size:15px;
+  outline:none;border:1px solid transparent;min-height:40px;}
+.chat-input:focus{border-color:var(--tint);}
+.send-btn{background:var(--tint);color:#fff;border-radius:19px;padding:0 16px;height:40px;
+  font-size:14px;font-weight:600;transition:transform .14s var(--ease);}
+.send-btn:active{transform:scale(.94);}
+.round{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;
+  background:var(--card2);font-size:19px;flex:0 0 auto;}
+.round:active{transform:scale(.92);}
+
+/* 计算器 */
+.calc-display{padding:26px 22px 12px;text-align:right;font-size:46px;font-weight:250;
+  letter-spacing:-1px;min-height:100px;word-break:break-all;line-height:1.1;}
+.calc-pad{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:10px 14px 20px;}
+.calc-key{height:66px;border-radius:33px;background:var(--card);font-size:23px;font-weight:500;
+  display:grid;place-items:center;transition:transform .12s var(--ease),background .12s;}
+.calc-key:active{transform:scale(.94);background:var(--card2);}
+.calc-key.op{background:var(--orange);color:#fff;}
+.calc-key.fn{background:var(--card2);color:var(--tint);}
+
+/* 论坛 */
+.chips{display:flex;gap:8px;padding:8px 16px 12px;overflow-x:auto;}
+.chips::-webkit-scrollbar{display:none;}
+.chip{padding:7px 14px;border-radius:20px;background:var(--card);font-size:13px;white-space:nowrap;
+  border:1px solid var(--line);transition:all .18s;font-weight:500;}
+.chip.on{background:var(--tint);color:#fff;border-color:var(--tint);}
+.post-card{background:var(--card);border-radius:var(--r);margin:0 16px 10px;padding:14px;
+  box-shadow:var(--sh);transition:transform .16s var(--ease);}
+.post-card:active{transform:scale(.985);}
+.post-title{font-size:15.5px;font-weight:600;line-height:1.35;margin-bottom:6px;}
+.post-excerpt{font-size:13px;color:var(--text2);line-height:1.5;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.post-foot{display:flex;align-items:center;gap:10px;margin-top:10px;font-size:12px;color:var(--text2);}
+.act-btn{display:inline-flex;align-items:center;gap:4px;font-size:12.5px;color:var(--text2);
+  padding:4px 8px;border-radius:8px;transition:background .16s;}
+.act-btn:active{background:var(--card2);}
+.act-btn.on{color:var(--red);}
+.act-btn .ic{font-size:14px;}
+.comment{display:flex;gap:10px;padding:11px 14px;border-bottom:1px solid var(--line);}
+.comment .body{flex:1;min-width:0;}
+.comment .name{font-size:12.5px;color:var(--text2);font-weight:600;}
+.comment .txt{font-size:14px;margin-top:3px;word-break:break-word;line-height:1.45;}
+
+/* 开关 */
+.switch{width:50px;height:30px;border-radius:15px;background:var(--card2);position:relative;
+  transition:background .22s;flex:0 0 auto;border:1px solid var(--line);}
+.switch::after{content:"";position:absolute;top:2px;left:2px;width:24px;height:24px;border-radius:50%;
+  background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.25);transition:transform .22s var(--ease);}
+.switch.on{background:var(--green);border-color:var(--green);}
+.switch.on::after{transform:translateX(20px);}
+
+/* 面板 */
+.panel{position:absolute;inset:0;z-index:60;pointer-events:none;opacity:0;transition:opacity .26s;}
+.panel.open{pointer-events:auto;opacity:1;}
+.panel-bg{position:absolute;inset:0;background:rgba(0,0,0,.35);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);}
+.panel-sheet{position:absolute;left:0;right:0;top:0;max-height:88%;
+  padding:calc(var(--status-h) + env(safe-area-inset-top) + 8px) 14px 20px;
+  border-radius:0 0 30px 30px;overflow-y:auto;
+  background:var(--nav-bg);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);
+  transform:translateY(-24px);transition:transform .3s var(--ease);}
+.panel.open .panel-sheet{transform:translateY(0);}
+.panel-title{font-size:13px;color:var(--text2);font-weight:600;padding:8px 4px;}
+
+/* 控制中心 */
+.cc-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:12px;}
+.cc-tile{background:var(--card);border-radius:18px;padding:12px;display:flex;align-items:center;gap:10px;
+  font-size:13px;font-weight:600;box-shadow:var(--sh);transition:transform .16s var(--ease);}
+.cc-tile:active{transform:scale(.96);}
+.cc-tile.on{background:var(--tint);color:#fff;}
+.cc-tile .ico{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;
+  background:var(--card2);font-size:16px;color:var(--text);}
+.cc-tile.on .ico{background:rgba(255,255,255,.25);color:#fff;}
+.slider-wrap{background:var(--card);border-radius:18px;padding:14px 16px;margin-bottom:10px;box-shadow:var(--sh);}
+.slider-wrap .lbl{font-size:12px;color:var(--text2);font-weight:600;margin-bottom:8px;display:flex;justify-content:space-between;}
+input[type=range]{width:100%;-webkit-appearance:none;height:6px;border-radius:3px;
+  background:linear-gradient(90deg,var(--tint) 0%,var(--tint) var(--p,50%),var(--card2) var(--p,50%));outline:none;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;
+  background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.3);}
+input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:#fff;border:0;}
+
+/* 通知中心 */
+.notif-card{background:var(--card);border-radius:16px;padding:12px 14px;margin-bottom:9px;
+  box-shadow:var(--sh);display:flex;gap:10px;align-items:flex-start;transition:transform .18s var(--ease);}
+.notif-card:active{transform:scale(.98);}
+.notif-card .avatar{width:34px;height:34px;font-size:14px;}
+.notif-card .nt{font-size:13.5px;font-weight:600;}
+.notif-card .nb{font-size:13px;color:var(--text2);margin-top:2px;line-height:1.4;}
+
+/* 多任务 */
+#multitask{position:absolute;inset:0;z-index:62;pointer-events:none;opacity:0;
+  background:rgba(0,0,0,.55);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  transition:opacity .26s;display:flex;flex-direction:column;justify-content:center;gap:12px;padding:60px 20px 40px;}
+#multitask.open{pointer-events:auto;opacity:1;}
+.mt-card{background:var(--card);border-radius:18px;padding:14px;box-shadow:var(--sh-lg);
+  display:flex;align-items:center;gap:12px;transition:transform .2s var(--ease);}
+.mt-card:active{transform:scale(.97);}
+.mt-empty{color:#fff;text-align:center;font-size:14px;opacity:.8;}
+
+/* 弹窗 & Toast */
+#overlays{position:absolute;inset:0;z-index:80;pointer-events:none;}
+.modal-wrap{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  padding:26px;pointer-events:auto;}
+.modal-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.42);opacity:0;transition:opacity .22s;}
+.modal-wrap.show .modal-backdrop{opacity:1;}
+.modal{position:relative;width:100%;max-width:310px;background:var(--card);border-radius:20px;
+  padding:20px;box-shadow:var(--sh-lg);transform:scale(.92);opacity:0;
+  transition:transform .22s var(--ease),opacity .22s;max-height:80%;overflow-y:auto;}
+.modal-wrap.show .modal{transform:scale(1);opacity:1;}
+.m-title{font-size:16px;font-weight:600;margin:0 0 8px;}
+.m-text{font-size:13.5px;color:var(--text2);margin:0 0 16px;line-height:1.5;}
+.m-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:14px;}
+.sheet-list{display:flex;flex-direction:column;gap:1px;background:var(--line);border-radius:14px;overflow:hidden;}
+.sheet-item{background:var(--card);padding:14px;font-size:15px;text-align:left;transition:background .16s;}
+.sheet-item:active{background:var(--card2);}
+.sheet-item.cancel{background:var(--card);color:var(--tint);font-weight:600;text-align:center;
+  border-radius:14px;margin-top:8px;}
+#toasts{position:absolute;left:0;right:0;bottom:calc(60px + env(safe-area-inset-bottom));z-index:120;
+  display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none;padding:0 24px;}
+.toast{background:rgba(28,28,30,.92);color:#fff;font-size:13.5px;padding:10px 18px;border-radius:22px;
+  transform:translateY(10px) scale(.94);opacity:0;transition:all .26s var(--ease);max-width:100%;
+  text-align:center;box-shadow:0 6px 20px rgba(0,0,0,.3);}
+.toast.show{transform:translateY(0) scale(1);opacity:1;}
+
+/* Home 指示条 */
+#home-indicator{position:absolute;bottom:calc(7px + env(safe-area-inset-bottom));left:50%;
+  transform:translateX(-50%);width:134px;height:5px;border-radius:3px;background:var(--text);
+  opacity:.36;z-index:41;transition:opacity .2s;}
+#home-indicator:active{opacity:.7;}
+
+/* 涟漪 */
+.ripple{position:absolute;border-radius:50%;background:currentColor;opacity:.22;
+  transform:scale(0);animation:rip .55s ease-out forwards;pointer-events:none;}
+@keyframes rip{to{transform:scale(2.6);opacity:0;}}
+
+/* 各种小组件 */
+.photo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;padding:3px;}
+.photo-cell{aspect-ratio:1;border-radius:6px;overflow:hidden;position:relative;transition:transform .16s;}
+.photo-cell:active{transform:scale(.96);}
+.photo-cell .fill{position:absolute;inset:0;background:linear-gradient(135deg,hsl(var(--h) 70% 62%),hsl(calc(var(--h) + 42) 70% 50%));}
+.viewfinder{position:relative;aspect-ratio:3/4;margin:0 16px;border-radius:20px;overflow:hidden;
+  background:linear-gradient(150deg,#2b5876,#4e4376);display:grid;place-items:center;}
+.viewfinder .grid-lines{position:absolute;inset:0;
+  background-image:linear-gradient(rgba(255,255,255,.16) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(255,255,255,.16) 1px,transparent 1px);
+  background-size:33.33% 33.33%;}
+.shutter{width:70px;height:70px;border-radius:50%;background:#fff;border:4px solid rgba(255,255,255,.4);
+  margin:22px auto 0;display:block;transition:transform .14s var(--ease);}
+.shutter:active{transform:scale(.9);}
+.month-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;padding:0 12px;}
+.mday{aspect-ratio:1;display:grid;place-items:center;font-size:13.5px;border-radius:10px;
+  position:relative;transition:background .16s;}
+.mday:active{background:var(--card2);}
+.mday.head{color:var(--text2);font-size:11.5px;font-weight:600;}
+.mday.dim{color:var(--text3);}
+.mday.today{background:var(--tint);color:#fff;font-weight:600;}
+.mday.has::after{content:"";position:absolute;bottom:5px;width:4px;height:4px;border-radius:50%;background:var(--orange);}
+.mday.today.has::after{background:#fff;}
+.progressbar{height:6px;border-radius:3px;background:var(--card2);overflow:hidden;position:relative;}
+.progressbar .fill{position:absolute;left:0;top:0;bottom:0;background:var(--tint);border-radius:3px;transition:width .25s linear;}
+.hidden{display:none !important;}
+
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:.001ms !important;transition-duration:.001ms !important;}
+}
+</style>
+</head>
+<body>
+
+<!-- 图标精灵 -->
+<svg aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden">
+<symbol id="i-phone" viewBox="0 0 24 24"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.58.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1C10.75 21 3 13.25 3 3.5c0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.22 2.21z"/></symbol>
+<symbol id="i-chat" viewBox="0 0 24 24"><path d="M12 3C6.9 3 3 6.4 3 10.6c0 2.2 1.1 4.2 2.9 5.6-.1 1.2-.5 2.4-1.3 3.4 1.7-.2 3.2-.9 4.4-1.9 1 .3 2 .4 3 .4 5.1 0 9-3.4 9-7.5S17.1 3 12 3z"/></symbol>
+<symbol id="i-contacts" viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm0 2c-4.1 0-7 2.2-7 4.6V20h14v-1.4c0-2.4-2.9-4.6-7-4.6z"/></symbol>
+<symbol id="i-camera" viewBox="0 0 24 24"><path d="M9 4l-1.4 2H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-3.6L15 4H9zm3 4.6a5 5 0 1 1 0 10 5 5 0 0 1 0-10z"/></symbol>
+<symbol id="i-photos" viewBox="0 0 24 24"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm2 12h12l-4-5.2-3 3.6-2.2-2.6L6 16z"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 3a7 7 0 1 1 0 14 7 7 0 0 1 0-14zm-.9 2.4v5l3.9 2.3.9-1.5-3-1.8V7.4h-1.8z"/></symbol>
+<symbol id="i-calendar" viewBox="0 0 24 24"><path d="M8 2v2H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3V2h-2v2H10V2H8zM5 9h14v10H5V9z"/></symbol>
+<symbol id="i-notes" viewBox="0 0 24 24"><path d="M6 2a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h9l5-5V4a2 2 0 0 0-2-2H6zm8 16v-4h4l-4 4zM8 6h8v2H8V6zm0 4h8v2H8v-2z"/></symbol>
+<symbol id="i-calc" viewBox="0 0 24 24"><path d="M6 2h12a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm1 3v3h10V5H7zm0 5v2h2v-2H7zm4 0v2h2v-2h-2zm4 0v2h2v-2h-2zM7 14v2h2v-2H7zm4 0v2h2v-2h-2zm4 0v2h2v-2h-2zM7 18v2h2v-2H7zm4 0v2h2v-2h-2zm4 0v2h2v-2h-2z"/></symbol>
+<symbol id="i-weather" viewBox="0 0 24 24"><circle cx="17.5" cy="6.5" r="3"/><path d="M6.5 20a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 17.6 10.2 4.4 4.4 0 0 1 17 20H6.5z"/></symbol>
+<symbol id="i-maps" viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></symbol>
+<symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18a3 3 0 1 1-2-2.83V5.5l12-2.5v11.7A3 3 0 1 1 17 12V7.6l-8 1.7V18z"/></symbol>
+<symbol id="i-settings" viewBox="0 0 24 24"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm9.4 4c0-.4-.1-.8-.1-1.2l2-1.6-2-3.4-2.4 1a7.3 7.3 0 0 0-2-1.2L16.5 3h-4l-.4 2.6a7.3 7.3 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6a7.4 7.4 0 0 0 0 2.4l-2 1.6 2 3.4 2.4-1c.6.5 1.3.9 2 1.2l.4 2.6h4l.4-2.6c.7-.3 1.4-.7 2-1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2z"/></symbol>
+<symbol id="i-mail" viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v.3l-9 5.6-9-5.6V6zm0 2.6V18a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.6l-8.5 5.3a1 1 0 0 1-1 0L3 8.6z"/></symbol>
+<symbol id="i-compass" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm3.6 6.4l-2.2 5.8-5.8 2.2 2.2-5.8 5.8-2.2z"/></symbol>
+<symbol id="i-store" viewBox="0 0 24 24"><path d="M6 7V6a6 6 0 1 1 12 0v1h2a1 1 0 0 1 1 1v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a1 1 0 0 1 1-1h2zm2 0h8V6a4 4 0 0 0-8 0v1z"/></symbol>
+<symbol id="i-themes" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1.2 0 2-.9 2-2 0-.6-.2-1.1-.6-1.5-.3-.4-.4-.8-.4-1.2 0-1 .8-1.8 1.8-1.8H17a5 5 0 0 0 5-5c0-3.9-4.5-6.5-10-6.5zM7 12a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3-4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3 4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></symbol>
+<symbol id="i-game" viewBox="0 0 24 24"><path d="M7 6h10a4 4 0 0 1 4 4v5a3 3 0 0 1-5.5 1.7L14 15h-4l-1.5 1.7A3 3 0 0 1 3 15v-5a4 4 0 0 1 4-4zm0 3v1.5H5.5V12H7v1.5h1.5V12H10v-1.5H8.5V9H7zm8.5.5a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm2 3a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/></symbol>
+<symbol id="i-wechat" viewBox="0 0 24 24"><path d="M9.4 4C5.1 4 1.6 6.9 1.6 10.5c0 2 1.1 3.8 2.9 5l-.8 2.5 2.9-1.4c.9.3 1.9.4 2.9.4h.6a6.4 6.4 0 0 1-.3-2c0-3.6 3.4-6.5 7.6-6.5h.6C17 5.9 13.5 4 9.4 4z"/><path d="M17.2 9C13.4 9 10.3 11.3 10.3 14.2c0 2.8 3.1 5.1 6.9 5.1.8 0 1.6-.1 2.4-.3l2.3 1.2-.6-2c1.4-1 2.3-2.4 2.3-4C23.6 11.3 21 9 17.2 9z"/></symbol>
+<symbol id="i-forum" viewBox="0 0 24 24"><path d="M4 3h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H10l-5 4v-4H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm3 5v2h10V8H7zm0 4v2h6v-2H7z"/></symbol>
+<symbol id="i-browser" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 2c1.8 0 3.3 3.6 3.3 8s-1.5 8-3.3 8-3.3-3.6-3.3-8S10.2 4 12 4zM3 11h18v2H3z"/></symbol>
+<symbol id="i-files" viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6z"/></symbol>
+<symbol id="i-wallet" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2v1h-4a3 3 0 0 0 0 6h4v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7zm13 3h5v2h-5a1 1 0 0 1 0-2z"/></symbol>
+<symbol id="i-health" viewBox="0 0 24 24"><path d="M12 21s-8-4.6-8-10a4.6 4.6 0 0 1 8-3 4.6 4.6 0 0 1 8 3c0 5.4-8 10-8 10z"/></symbol>
+<symbol id="i-mic" viewBox="0 0 24 24"><path d="M12 3a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3zm7 9a7 7 0 0 1-6 6.9V22h-2v-3.1A7 7 0 0 1 5 12h2a5 5 0 0 0 10 0h2z"/></symbol>
+<symbol id="i-code" viewBox="0 0 24 24"><path d="M8.6 16.6L4 12l4.6-4.6L10 8.8 6.8 12 10 15.2l-1.4 1.4zm6.8 0L14 15.2 17.2 12 14 8.8l1.4-1.4L20 12l-4.6 4.6z"/></symbol>
+<symbol id="i-back" viewBox="0 0 24 24"><path d="M15.4 4.6L8 12l7.4 7.4 1.4-1.4L10.8 12l6-6z"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><path d="M10 3a7 7 0 1 0 4.3 12.5l4.6 4.6 1.4-1.4-4.6-4.6A7 7 0 0 0 10 3zm0 2a5 5 0 1 1 0 10 5 5 0 0 1 0-10z"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><path d="M11 4h2v7h7v2h-7v7h-2v-7H4v-2h7V4z"/></symbol>
+<symbol id="i-close" viewBox="0 0 24 24"><path d="M6.4 5L5 6.4 10.6 12 5 17.6 6.4 19 12 13.4 17.6 19 19 17.6 13.4 12 19 6.4 17.6 5 12 10.6 6.4 5z"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></symbol>
+<symbol id="i-trash" viewBox="0 0 24 24"><path d="M6 7h12l-1 14H7L6 7zm3-4h6l1 2H8l1-2zM4 7h16v2H4V7z"/></symbol>
+<symbol id="i-edit" viewBox="0 0 24 24"><path d="M3 17.2V21h3.8L18 9.8 14.2 6 3 17.2zM20.7 7.1a1 1 0 0 0 0-1.4l-2.4-2.4a1 1 0 0 0-1.4 0L15 5.6 18.4 9l2.3-1.9z"/></symbol>
+<symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 21s-8-4.6-8-10a4.6 4.6 0 0 1 8-3 4.6 4.6 0 0 1 8 3c0 5.4-8 10-8 10z"/></symbol>
+<symbol id="i-star" viewBox="0 0 24 24"><path d="M12 2l3 6.6 7 .8-5.2 4.7 1.4 7-6.2-3.5L5.8 21l1.4-7L2 9.4l7-.8L12 2z"/></symbol>
+<symbol id="i-send" viewBox="0 0 24 24"><path d="M3 20l18-8L3 4v6l12 2-12 2v6z"/></symbol>
+<symbol id="i-image" viewBox="0 0 24 24"><path d="M4 4h16a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zm2 12h12l-4-5-3 3.5L9 12l-3 4z"/></symbol>
+<symbol id="i-wifi" viewBox="0 0 24 24"><path d="M12 19a1.6 1.6 0 1 0 0 3.2A1.6 1.6 0 0 0 12 19zm0-5.2c-1.5 0-2.9.6-3.9 1.6l1.7 1.7a3.2 3.2 0 0 1 4.4 0l1.7-1.7a5.6 5.6 0 0 0-3.9-1.6zm0-4.5c-2.8 0-5.3 1.1-7.2 2.9l1.7 1.7A7.7 7.7 0 0 1 12 12c2.1 0 4 .8 5.5 2.3l1.7-1.7A10.2 10.2 0 0 0 12 9.3zm0-4.5C8 4.8 4.4 6.3 1.7 8.9l1.7 1.7A12.7 12.7 0 0 1 12 7.3c3.3 0 6.4 1.2 8.6 3.3l1.7-1.7A15.2 15.2 0 0 0 12 4.8z"/></symbol>
+<symbol id="i-signal" viewBox="0 0 24 24"><path d="M2 18h3v4H2v-4zm5-4h3v8H7v-8zm5-4h3v12h-3V10zm5-4h3v16h-3V6z"/></symbol>
+<symbol id="i-more" viewBox="0 0 24 24"><path d="M12 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm0 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm0 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/></symbol>
+<symbol id="i-flash" viewBox="0 0 24 24"><path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z"/></symbol>
+<symbol id="i-moon" viewBox="0 0 24 24"><path d="M12.3 2a10 10 0 1 0 9.7 12.6A8 8 0 0 1 12.3 2z"/></symbol>
+<symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4l13 8-13 8V4z"/></symbol>
+<symbol id="i-pause" viewBox="0 0 24 24"><path d="M7 4h4v16H7V4zm6 0h4v16h-4V4z"/></symbol>
+<symbol id="i-lock" viewBox="0 0 24 24"><path d="M7 10V7a5 5 0 0 1 10 0v3h1.5a1.5 1.5 0 0 1 1.5 1.5v8a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 19.5v-8A1.5 1.5 0 0 1 5.5 10H7zm2 0h6V7a3 3 0 0 0-6 0v3z"/></symbol>
+</svg>
+
+<div id="stage">
+  <div id="phone">
+    <div id="screen">
+      <div id="wallpaper"></div>
+
+      <!-- 桌面 -->
+      <div id="home" class="hide">
+        <div id="dpages"></div>
+        <div id="dots"></div>
+        <div id="dock"></div>
+      </div>
+
+      <!-- 应用页面层 -->
+      <div id="pages-layer"></div>
+
+      <!-- 锁屏 -->
+      <div id="lock-screen">
+        <div class="lock-time" id="lock-time">09:41</div>
+        <div class="lock-date" id="lock-date">1月1日 星期一</div>
+        <div class="lock-notifs" id="lock-notifs"></div>
+        <div class="lock-hint">上滑或点击解锁</div>
+      </div>
+      <div id="lock-keypad">
+        <div class="pw-dots" id="pw-dots"></div>
+        <div class="pw-pad" id="pw-pad"></div>
+        <button class="btn ghost" data-action="hideKeypad" style="background:rgba(255,255,255,.2);color:#fff">取消</button>
+      </div>
+
+      <!-- 状态栏 -->
+      <div id="statusbar">
+        <div class="sb-left"><span id="sb-time">09:41</span></div>
+        <div class="sb-right">
+          <svg class="ic"><use href="#i-signal"/></svg>
+          <svg class="ic"><use href="#i-wifi"/></svg>
+          <span class="batt"><span class="batt-box"><span class="batt-fill"></span></span></span>
+        </div>
+      </div>
+
+      <div id="home-indicator" data-longpress="multitask"></div>
+
+      <!-- 通知中心 -->
+      <div id="notif-center" class="panel">
+        <div class="panel-bg" data-action="closePanels"></div>
+        <div class="panel-sheet">
+          <div class="panel-title">通知中心</div>
+          <div id="notif-list"></div>
+          <div class="row" style="margin-top:12px;gap:10px">
+            <button class="btn ghost sm" data-action="clearNotifs">清除全部</button>
+            <div class="spacer"></div>
+            <button class="btn sm" data-action="closePanels">关闭</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 控制中心 -->
+      <div id="control-center" class="panel">
+        <div class="panel-bg" data-action="closePanels"></div>
+        <div class="panel-sheet" id="cc-body"></div>
+      </div>
+
+      <!-- 多任务 -->
+      <div id="multitask" data-action="closeMultitask"></div>
+
+      <div id="overlays"></div>
+      <div id="toasts"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* =========================================================
+   0. 工具
+   ========================================================= */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const clone = o => JSON.parse(JSON.stringify(o));
+const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-3);
+const pad = n => String(n).padStart(2, "0");
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const ic = (n, cls = "") => `<svg class="ic ${cls}" aria-hidden="true"><use href="#i-${n}"/></svg>`;
+const NOW = Date.now(), MIN = 60000, HR = 3600000, DAY = 86400000;
+
+function fmtTime(ts) { const d = new Date(ts); return pad(d.getHours()) + ":" + pad(d.getMinutes()); }
+function fmtDay(ts) { const d = new Date(ts); return `${d.getMonth() + 1}月${d.getDate()}日`; }
+function fmtRel(ts) {
+  const diff = Date.now() - ts;
+  if (diff < 60000) return "刚刚";
+  if (diff < HR) return Math.floor(diff / MIN) + "分钟前";
+  if (diff < DAY) return Math.floor(diff / HR) + "小时前";
+  if (diff < DAY * 7) return Math.floor(diff / DAY) + "天前";
+  return fmtDay(ts);
+}
+const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/* =========================================================
+   1. 默认数据
+   ========================================================= */
+const DATA_VERSION = 3;
+
+const DEFAULT_DATA = {
+  v: DATA_VERSION,
+  settings: {
+    theme: "light", fontSize: 15, vibrate: true, sound: true,
+    wallpaper: 0, passcode: "1234", passcodeOn: true, devUnlocked: false,
+    wifi: true, bluetooth: true, airplane: false, silent: false, torch: false,
+    brightness: 72, volume: 46
+  },
+  chats: [
+    {
+      id: "c1", name: "妈妈", hue: 348, pinned: true, muted: false, unread: 2,
+      msgs: [
+        { id: "a1", from: "them", type: "text", text: "今晚回家吃饭吗？做了你爱吃的红烧排骨。", ts: NOW - 5 * HR },
+        { id: "a2", from: "me", type: "text", text: "应该可以，七点左右到～", ts: NOW - 4.8 * HR },
+        { id: "a3", from: "them", type: "text", text: "好，路上注意安全。", ts: NOW - 4.7 * HR },
+        { id: "a4", from: "them", type: "text", text: "对了，你上次说的体检报告出来了吗？", ts: NOW - 4.6 * HR },
+        { id: "a5", from: "me", type: "text", text: "出来了，各项都挺正常的，别担心。", ts: NOW - 4.5 * HR },
+        { id: "a6", from: "them", type: "text", text: "那就好，别老熬夜，早点睡。", ts: NOW - 4.4 * HR },
+        { id: "a7", from: "them", type: "text", text: "到家给我发个消息。", ts: NOW - 12 * MIN }
+      ]
+    },
+    {
+      id: "c2", name: "好友阿澄", hue: 205, pinned: false, muted: false, unread: 0,
+      msgs: [
+        { id: "b1", from: "them", type: "text", text: "周末去不去看那个新开的展？", ts: NOW - 8 * HR },
+        { id: "b2", from: "me", type: "text", text: "什么展？", ts: NOW - 7.9 * HR },
+        { id: "b3", from: "them", type: "text", text: "城市光影艺术展，在河西那边，票不贵。", ts: NOW - 7.8 * HR },
+        { id: "b4", from: "me", type: "text", text: "听起来不错，几点？", ts: NOW - 7.7 * HR },
+        { id: "b5", from: "them", type: "text", text: "下午两点怎么样，看完还能去吃个饭。", ts: NOW - 7.6 * HR },
+        { id: "b6", from: "me", type: "text", text: "行，那我把周六空出来。", ts: NOW - 7.5 * HR },
+        { id: "b7", from: "them", type: "text", text: "我把票买了，两张。", ts: NOW - 7.4 * HR },
+        { id: "b8", from: "me", type: "text", text: "效率真高 👍", ts: NOW - 40 * MIN }
+      ]
+    },
+    {
+      id: "c3", name: "项目群", hue: 148, pinned: false, muted: true, unread: 1, group: true,
+      msgs: [
+        { id: "d1", from: "them", type: "text", text: "阿澄：各位，新的排期表已经更新到共享文档了。", ts: NOW - 3 * HR },
+        { id: "d2", from: "them", type: "text", text: "小鹿：收到，我下午对一下测试用例。", ts: NOW - 2.9 * HR },
+        { id: "d3", from: "me", type: "text", text: "设计稿我这边今晚会给到第二版。", ts: NOW - 2.8 * HR },
+        { id: "d4", from: "them", type: "text", text: "阿澄：好，明天站会十点开始，别迟到。", ts: NOW - 2.7 * HR },
+        { id: "d5", from: "them", type: "text", text: "小鹿：收到收到。", ts: NOW - 2.6 * HR },
+        { id: "d6", from: "them", type: "text", text: "阿澄：另外周五要交一版可用原型，大家留意下。", ts: NOW - 55 * MIN }
+      ]
+    },
+    {
+      id: "c4", name: "论坛通知", hue: 32, pinned: false, muted: false, unread: 3, system: true,
+      msgs: [
+        { id: "e1", from: "them", type: "text", text: "你的帖子《周末去哪拍：城市角落的光影》收到了 3 条新评论。", ts: NOW - 4 * HR },
+        { id: "e2", from: "them", type: "text", text: "用户「纸上旅人」赞了你的帖子。", ts: NOW - 3.5 * HR },
+        { id: "e3", from: "them", type: "text", text: "你收藏的板块「摄影」有 5 篇新内容。", ts: NOW - 3 * HR }
+      ]
+    }
+  ],
+  contacts: [
+    { id: "p1", name: "妈妈", phone: "138-0000-1001", note: "家里", hue: 348 },
+    { id: "p2", name: "阿澄", phone: "139-0000-2002", note: "老同学", hue: 205 },
+    { id: "p3", name: "小鹿", phone: "137-0000-3003", note: "同事", hue: 148 },
+    { id: "p4", name: "老周", phone: "136-0000-4004", note: "摄影搭子", hue: 24 },
+    { id: "p5", name: "林晚", phone: "135-0000-5005", note: "读书会", hue: 280 },
+    { id: "p6", name: "物业中心", phone: "400-800-6600", note: "服务", hue: 190 },
+    { id: "p7", name: "快递驿站", phone: "131-0000-7007", note: "", hue: 100 },
+    { id: "p8", name: "宋医生", phone: "133-0000-8008", note: "体检", hue: 0 }
+  ],
+  sms: [
+    { id: "s1", name: "快递驿站", hue: 100, msgs: [{ from: "them", text: "您好，您的快递已放在门口驿站，取件码 8842。", ts: NOW - 6 * HR }] },
+    { id: "s2", name: "物业中心", hue: 190, msgs: [{ from: "them", text: "温馨提示：本周六上午 9-11 点进行消防管道检修，请提前储水。", ts: NOW - 26 * HR }] }
+  ],
+  forum: {
+    boards: [
+      { id: "b1", name: "城市漫游" },
+      { id: "b2", name: "摄影" },
+      { id: "b3", name: "日常碎片" }
+    ],
+    posts: [
+      {
+        id: "f1", boardId: "b2", title: "周末去哪拍：城市角落的光影", author: "纸上旅人", ts: NOW - 5 * HR,
+        content: "最近迷上了在老城区的小巷子里找光。下午四点到五点，阳光斜斜地打在墙面上，那种暖调的边缘光真的很好看。推荐大家带一支 35mm 的定焦，走窄巷子特别灵活。\n\n几个小建议：\n1. 逆光时把曝光往下压一档，保留高光细节；\n2. 多等一等行人进入画面，会更有故事感；\n3. 别忘了拍一点细节，比如窗台的旧花盆。",
+        likes: 24, liked: false, faved: false,
+        comments: [
+          { id: "fc1", author: "镜头之外", text: "同意！老城区的墙面特别有质感。", ts: NOW - 4.5 * HR },
+          { id: "fc2", author: "云上散步", text: "35mm 确实好用，最近刚入手。", ts: NOW - 4 * HR },
+          { id: "fc3", author: "吃面不加葱", text: "请问具体是哪条巷子呀？", ts: NOW - 3.2 * HR },
+          { id: "fc4", author: "纸上旅人", text: "回复 @吃面不加葱：沿着河边往西走，第二个路口右转就是。", ts: NOW - 2.8 * HR }
+        ]
+      },
+      {
+        id: "f2", boardId: "b1", title: "有没有人一起去爬山？", author: "风里有信", ts: NOW - 9 * HR,
+        content: "打算这周日去城郊的云栖山，路线难度不大，全程大概四小时。有没有同行的？早上七点在地铁三号线终点站集合。",
+        likes: 12, liked: true, faved: false,
+        comments: [
+          { id: "fc5", author: "小鹿", text: "有点心动，但七点真的好早……", ts: NOW - 8 * HR },
+          { id: "fc6", author: "清晨六点半", text: "我报名，正好想试试新买的登山鞋。", ts: NOW - 7.5 * HR },
+          { id: "fc7", author: "风里有信", text: "好呀，到时候私信你集合点。", ts: NOW - 7 * HR }
+        ]
+      },
+      {
+        id: "f3", boardId: "b3", title: "分享一家超好吃的面馆", author: "吃面不加葱", ts: NOW - 14 * HR,
+        content: "在老城区菜市场旁边，一家开了二十年的小面馆。推荐他们家的雪菜肉丝面，汤头很清亮，雪菜是自己腌的，咸香刚刚好。中午去会排队，建议十一点前到。",
+        likes: 41, liked: false, faved: true,
+        comments: [
+          { id: "fc8", author: "叶子", text: "已经收藏了，周末去试试。", ts: NOW - 13 * HR },
+          { id: "fc9", author: "纸上旅人", text: "这家的辣油也很香，记得加一勺。", ts: NOW - 12 * HR },
+          { id: "fc10", author: "吃面不加葱", text: "对！辣油是灵魂。", ts: NOW - 11 * HR }
+        ]
+      },
+      {
+        id: "f4", boardId: "b3", title: "关于早起的一点小经验", author: "清晨六点半", ts: NOW - 20 * HR,
+        content: "坚持早起三个月了，分享几个有用的方法：\n1. 前一晚把手机放远一点，闹钟响了必须下床；\n2. 起床后立刻拉开窗帘，让光进来；\n3. 不要周末报复性睡懒觉，最多晚起一小时。\n最关键的一点其实是：早睡。",
+        likes: 67, liked: false, faved: false,
+        comments: [
+          { id: "fc11", author: "风里有信", text: "第三条说中了，我周末能睡到中午。", ts: NOW - 19 * HR },
+          { id: "fc12", author: "林晚", text: "光这一点真的很重要，晒到太阳整个人都清醒了。", ts: NOW - 18 * HR },
+          { id: "fc13", author: "小鹿", text: "明天开始试一周。", ts: NOW - 15 * HR }
+        ]
+      },
+      {
+        id: "f5", boardId: "b2", title: "老城区的胶片感", author: "镜头之外", ts: NOW - 2 * DAY,
+        content: "最近用一支老镜头拍了一组，色彩偏青，颗粒感很足。后期基本没怎么调，只在阴影里加了一点点冷调。有时候器材旧一点，反而更容易拍出想拍的味道。",
+        likes: 33, liked: false, faved: false,
+        comments: [
+          { id: "fc14", author: "云上散步", text: "这种青调很舒服，不会显得脏。", ts: NOW - 2 * DAY + 2 * HR },
+          { id: "fc15", author: "纸上旅人", text: "请问是什么镜头？", ts: NOW - 2 * DAY + 3 * HR },
+          { id: "fc16", author: "镜头之外", text: "回复 @纸上旅人：一支八十年代的 50mm。", ts: NOW - 2 * DAY + 4 * HR }
+        ]
+      },
+      {
+        id: "f6", boardId: "b1", title: "求助：周末去湖边怎么走", author: "新来的", ts: NOW - 2.5 * DAY,
+        content: "刚搬来这个城市，想周末去镜湖看看。查了一下好像要转两趟公交，有没有更顺的路线？骑自行车过去大概多远？",
+        likes: 8, liked: false, faved: false,
+        comments: [
+          { id: "fc17", author: "风里有信", text: "地铁到南站，出来有直达的接驳车，半小时一班。", ts: NOW - 2.4 * DAY },
+          { id: "fc18", author: "叶子", text: "骑车的话大概十八公里，沿河绿道很好骑。", ts: NOW - 2.3 * DAY },
+          { id: "fc19", author: "新来的", text: "谢谢两位！那我骑车去。", ts: NOW - 2.2 * DAY }
+        ]
+      },
+      {
+        id: "f7", boardId: "b2", title: "今天的晚霞真的绝了", author: "云上散步", ts: NOW - 3 * DAY,
+        content: "本来只是下楼倒垃圾，抬头看见整个天空都是橘粉色的，赶紧跑回家拿相机。前后也就十分钟，颜色就变了。所以啊，好照片有时候真的靠运气。",
+        likes: 88, liked: false, faved: false,
+        comments: [
+          { id: "fc20", author: "镜头之外", text: "这颜色也太好看了。", ts: NOW - 3 * DAY + HR },
+          { id: "fc21", author: "清晨六点半", text: "所以说相机要随时带在身上。", ts: NOW - 3 * DAY + 2 * HR },
+          { id: "fc22", author: "吃面不加葱", text: "羡慕，我那天在加班。", ts: NOW - 3 * DAY + 3 * HR }
+        ]
+      },
+      {
+        id: "f8", boardId: "b3", title: "养绿植的第一周记录", author: "叶子", ts: NOW - 4 * DAY,
+        content: "买了一盆龟背竹和一小株薄荷放在窗台。龟背竹目前状态不错，薄荷有点蔫，查资料说可能是浇水太勤了。有没有养过的朋友给点建议？",
+        likes: 19, liked: false, faved: false,
+        comments: [
+          { id: "fc23", author: "林晚", text: "薄荷喜欢晒，但怕积水，盆底一定要透。", ts: NOW - 4 * DAY + 2 * HR },
+          { id: "fc24", author: "小鹿", text: "我的龟背竹放北阳台长得很好，不用直射光。", ts: NOW - 4 * DAY + 4 * HR },
+          { id: "fc25", author: "叶子", text: "学到了，谢谢！", ts: NOW - 4 * DAY + 5 * HR }
+        ]
+      }
+    ]
+  },
+  notes: [
+    { id: "n1", title: "周末清单", body: "1. 取快递\n2. 洗床单\n3. 去美术馆看展\n4. 给妈妈打电话", ts: NOW - 3 * HR },
+    { id: "n2", title: "灵感碎片", body: "把窗台的光拍下来\n巷子口的猫\n旧自行车和红墙", ts: NOW - 1 * DAY },
+    { id: "n3", title: "购物", body: "牛奶\n鸡蛋\n咖啡豆\n洗衣液", ts: NOW - 2 * DAY },
+    { id: "n4", title: "读书笔记", body: "《城市的光》第三章：光是一种材料，它塑造空间的边界，也塑造人的情绪。", ts: NOW - 3 * DAY },
+    { id: "n5", title: "工作备忘", body: "周三前交第二版设计稿\n周五上午评审会", ts: NOW - 5 * DAY }
+  ],
+  events: [
+    { id: "ev1", title: "看展：城市光影", date: isoDate(new Date(NOW + 2 * DAY)), time: "14:00" },
+    { id: "ev2", title: "项目评审会", date: isoDate(new Date(NOW + 4 * DAY)), time: "10:00" },
+    { id: "ev3", title: "体检复查", date: isoDate(new Date(NOW + 9 * DAY)), time: "09:30" },
+    { id: "ev4", title: "妈妈的生日", date: isoDate(new Date(NOW + 16 * DAY)), time: "18:00" }
+  ],
+  files: [
+    { id: "fl1", name: "设计稿_v2.pdf", type: "pdf", size: "2.4 MB", folder: "工作" },
+    { id: "fl2", name: "旅行照片.zip", type: "zip", size: "128 MB", folder: "图片" },
+    { id: "fl3", name: "读书笔记.txt", type: "txt", size: "12 KB", folder: "文档" },
+    { id: "fl4", name: "预算表.xlsx", type: "xls", size: "86 KB", folder: "工作" },
+    { id: "fl5", name: "海边.jpg", type: "jpg", size: "3.1 MB", folder: "图片" }
+  ],
+  mails: [
+    { id: "ml1", folder: "inbox", from: "团队通知", to: "我", subject: "关于本周评审会的安排", body: "各位好：\n本周五上午 10:00 在三楼会议室进行方案评审，请提前准备演示材料。\n如有时间冲突请提前说明。", ts: NOW - 6 * HR, read: false },
+    { id: "ml2", folder: "inbox", from: "林晚", to: "我", subject: "读书会这期的书目", body: "这期我们读《城市的光》，下周三晚上七点老地方见。", ts: NOW - 1 * DAY, read: false },
+    { id: "ml3", folder: "inbox", from: "物业服务", to: "我", subject: "本月水电费通知", body: "您本月水电费合计 186.40 元，请于月底前缴纳。", ts: NOW - 3 * DAY, read: true },
+    { id: "ml4", folder: "inbox", from: "老周", to: "我", subject: "周末外拍？", body: "周六下午天气不错，要不要去老城区转一圈？", ts: NOW - 4 * DAY, read: true },
+    { id: "ml5", folder: "drafts", from: "我", to: "林晚", subject: "（草稿）关于下期读书会", body: "想着下期可以读一点散文……", ts: NOW - 2 * DAY, read: true },
+    { id: "ml6", folder: "sent", from: "我", to: "团队通知", subject: "回复：关于本周评审会的安排", body: "收到，我会提前准备好材料。", ts: NOW - 5 * HR, read: true }
+  ],
+  album: [
+    { id: "ph1", hue: 200, label: "海边" }, { id: "ph2", hue: 28, label: "夕阳" },
+    { id: "ph3", hue: 140, label: "山" }, { id: "ph4", hue: 320, label: "花" },
+    { id: "ph5", hue: 260, label: "夜" }, { id: "ph6", hue: 10, label: "巷子" },
+    { id: "ph7", hue: 180, label: "湖" }, { id: "ph8", hue: 60, label: "窗" },
+    { id: "ph9", hue: 300, label: "灯" }
+  ],
+  store: [
+    { id: "ap1", name: "云笔记", desc: "轻量的跨端笔记工具", installed: false, size: "12 MB", hue: 210 },
+    { id: "ap2", name: "慢跑日记", desc: "记录你的每一次跑步", installed: true, size: "24 MB", hue: 140 },
+    { id: "ap3", name: "像素相框", desc: "给照片加点复古滤镜", installed: false, size: "18 MB", hue: 30 },
+    { id: "ap4", name: "白噪音", desc: "助眠与专注的声音", installed: false, size: "8 MB", hue: 260 },
+    { id: "ap5", name: "清单盒子", desc: "极简待办事项", installed: true, size: "6 MB", hue: 340 },
+    { id: "ap6", name: "星空图鉴", desc: "抬头认识每一颗星", installed: false, size: "42 MB", hue: 240 },
+    { id: "ap7", name: "菜谱本", desc: "今天吃点什么", installed: false, size: "15 MB", hue: 15 },
+    { id: "ap8", name: "记账小猫", desc: "每天花了一点点", installed: false, size: "9 MB", hue: 90 }
+  ],
+  wallet: {
+    balance: 1288.5,
+    bills: [
+      { id: "w1", title: "地铁出行", amount: -4, ts: NOW - 3 * HR },
+      { id: "w2", title: "便利店", amount: -23.5, ts: NOW - 8 * HR },
+      { id: "w3", title: "工资", amount: 8600, ts: NOW - 2 * DAY },
+      { id: "w4", title: "午餐", amount: -32, ts: NOW - 2 * DAY },
+      { id: "w5", title: "书店", amount: -68, ts: NOW - 3 * DAY }
+    ]
+  },
+  health: { steps: 6842, distance: 4.8, calories: 236, sleep: 7.2 },
+  music: {
+    current: 0, playing: false, progress: 0,
+    list: [
+      { id: "mu1", name: "夜行列车", artist: "雾中来信", dur: 214 },
+      { id: "mu2", name: "夏日回声", artist: "海边信号", dur: 189 },
+      { id: "mu3", name: "慢慢走", artist: "山与海", dur: 245 },
+      { id: "mu4", name: "旧唱片", artist: "午后三点", dur: 198 }
+    ]
+  },
+  recordings: [],
+  notifications: [
+    { id: "nt1", app: "wechat", title: "妈妈", body: "到家给我发个消息。", ts: NOW - 12 * MIN },
+    { id: "nt2", app: "forum", title: "论坛", body: "用户「纸上旅人」评论了你的帖子。", ts: NOW - 2 * HR },
+    { id: "nt3", app: "mail", title: "邮件", body: "关于本周评审会的安排", ts: NOW - 6 * HR }
+  ],
+  story: {
+    enabled: false,
+    vars: {},
+    done: [],
+    log: [],
+    story: {
+      name: "示例剧情：深夜的来信",
+      nodes: [
+        {
+          id: "s1",
+          once: true,
+          on: { type: "unlock" },
+          actions: [
+            { type: "notify", title: "剧情", body: "夜深了，手机屏幕亮了一下。" },
+            { type: "setVar", key: "unlocked", value: true }
+          ]
+        },
+        {
+          id: "s2",
+          once: true,
+          on: { type: "appOpen", app: "wechat" },
+          actions: [
+            { type: "addMessage", chatId: "c2", from: "them", text: "（示例剧情）这么晚还没睡？" }
+          ]
+        }
+      ]
+    }
+  }
+};
+
+function isoDate(d) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
+
+/* =========================================================
+   2. 持久化
+   ========================================================= */
+const STORE_KEY = "xingyu.phone.data";
+
+function deepMerge(base, over) {
+  if (Array.isArray(base)) return Array.isArray(over) ? over : base;
+  if (base && typeof base === "object" && over && typeof over === "object") {
+    const out = {};
+    Object.keys(base).forEach(k => { out[k] = Object.prototype.hasOwnProperty.call(over, k) ? deepMerge(base[k], over[k]) : base[k]; });
+    Object.keys(over).forEach(k => { if (!Object.prototype.hasOwnProperty.call(base, k)) out[k] = over[k]; });
+    return out;
+  }
+  return over === undefined ? base : over;
+}
+
+function migrate(d) {
+  let v = d.v || 1;
+  if (v < 2) {
+    if (!d.notifications) d.notifications = [];
+    if (!d.settings.theme) d.settings.theme = "light";
+    v = 2;
+  }
+  if (v < 3) {
+    if (!d.story) d.story = clone(DEFAULT_DATA.story);
+    if (!d.recordings) d.recordings = [];
+    if (!d.sms) d.sms = clone(DEFAULT_DATA.sms);
+    v = 3;
+  }
+  d.v = DATA_VERSION;
+  return d;
+}
+
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (!raw) return clone(DEFAULT_DATA);
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return clone(DEFAULT_DATA);
+    return migrate(deepMerge(clone(DEFAULT_DATA), parsed));
+  } catch (e) {
+    console.warn("数据读取失败，使用默认数据", e);
+    return clone(DEFAULT_DATA);
+  }
+}
+
+let D = loadData();
+let saveTimer = null;
+function save(immediate) {
+  clearTimeout(saveTimer);
+  const write = () => {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(D)); }
+    catch (e) { toast("本地存储失败：" + e.message); }
+  };
+  if (immediate) write();
+  else saveTimer = setTimeout(write, 220);
+}
+window.addEventListener("beforeunload", () => save(true));
+document.addEventListener("visibilitychange", () => { if (document.hidden) save(true); });
+
+/* =========================================================
+   3. 运行时状态
+   ========================================================= */
+const S = {
+  locked: true,
+  page: 0,
+  notifOpen: false,
+  ccOpen: false,
+  multitask: false,
+  wechatTab: "chats",
+  forumBoard: "all",
+  forumSort: "new",
+  calcExpr: "",
+  calcDisplay: "0",
+  calMonth: new Date(),
+  calSelected: isoDate(new Date()),
+  photoView: null,
+  musicTimer: null,
+  stopwatch: { running: false, start: 0, elapsed: 0, timer: null },
+  timer: { running: false, remain: 0, timer: null },
+  cameraFront: false,
+  fileFolder: "全部",
+  recorder: { running: false, start: 0, timer: null },
+  game: { score: 0, best: 0, running: false },
+  dialNumber: ""
+};
+
+/* =========================================================
+   4. 基础 UI
+   ========================================================= */
+function haptic(ms = 8) {
+  if (D.settings.vibrate && navigator.vibrate) { try { navigator.vibrate(ms); } catch (e) {} }
+}
+let audioCtx = null;
+function beep(freq = 660, dur = 0.05, vol = 0.035) {
+  if (!D.settings.sound) return;
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = "sine"; o.frequency.value = freq;
+    g.gain.value = vol;
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start();
+    g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur);
+    o.stop(audioCtx.currentTime + dur);
+  } catch (e) {}
+}
+
+function toast(msg, ms = 1900) {
+  const box = $("#toasts");
+  const t = document.createElement("div");
+  t.className = "toast";
+  t.textContent = msg;
+  box.appendChild(t);
+  requestAnimationFrame(() => t.classList.add("show"));
+  setTimeout(() => { t.classList.remove("show"); setTimeout(() => t.remove(), 300); }, ms);
+}
+
+function closeModal() {
+  const w = $("#modal-wrap");
+  if (!w) return;
+  w.classList.remove("show");
+  setTimeout(() => w.remove(), 220);
+}
+
+function modal(innerHTML) {
+  closeModal();
+  const wrap = document.createElement("div");
+  wrap.className = "modal-wrap";
+  wrap.id = "modal-wrap";
+  wrap.innerHTML = `<div class="modal-backdrop" data-action="closeModal"></div><div class="modal">${innerHTML}</div>`;
+  $("#overlays").appendChild(wrap);
+  requestAnimationFrame(() => wrap.classList.add("show"));
+  return wrap;
+}
+
+function confirmBox(title, text, okText, cb) {
+  modal(`<h3 class="m-title">${esc(title)}</h3><p class="m-text">${esc(text)}</p>
+    <div class="m-actions">
+      <button class="btn ghost" data-action="closeModal">取消</button>
+      <button class="btn danger" id="cfm-ok">${esc(okText || "确定")}</button>
+    </div>`);
+  $("#cfm-ok").onclick = () => { closeModal(); cb(); };
+}
+
+function promptBox(title, value, cb, multiline) {
+  modal(`<h3 class="m-title">${esc(title)}</h3>
+    ${multiline
+      ? `<textarea class="field" id="prompt-input" rows="5">${esc(value || "")}</textarea>`
+      : `<input class="field" id="prompt-input" value="${esc(value || "")}">`}
+    <div class="m-actions">
+      <button class="btn ghost" data-action="closeModal">取消</button>
+      <button class="btn primary" id="prompt-ok">确定</button>
+    </div>`);
+  const inp = $("#prompt-input");
+  setTimeout(() => { inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }, 120);
+  inp.addEventListener("keydown", e => { if (e.key === "Enter" && !multiline) $("#prompt-ok").click(); });
+  $("#prompt-ok").onclick = () => { const v = inp.value; closeModal(); cb(v); };
+}
+
+function sheet(items) {
+  modal(`<div class="sheet-list">${items.map((it, i) => `<button class="sheet-item" data-si="${i}">${esc(it.label)}</button>`).join("")}</div>
+    <button class="sheet-item cancel" data-action="closeModal">取消</button>`);
+  setTimeout(() => {
+    $$("#modal-wrap [data-si]").forEach(b => {
+      b.onclick = () => { const i = +b.dataset.si; closeModal(); setTimeout(() => items[i].fn(), 60); };
+    });
+  }, 10);
+}
+
+function ripple(el, e) {
+  if (reducedMotion()) return;
+  const r = el.getBoundingClientRect();
+  if (!r.width || !r.height) return;
+  const d = Math.max(r.width, r.height);
+  const span = document.createElement("span");
+  span.className = "ripple";
+  span.style.width = span.style.height = d + "px";
+  span.style.left = (e.clientX - r.left - d / 2) + "px";
+  span.style.top = (e.clientY - r.top - d / 2) + "px";
+  if (getComputedStyle(el).position === "static") el.style.position = "relative";
+  el.appendChild(span);
+  setTimeout(() => span.remove(), 620);
+}
+
+/* =========================================================
+   5. 动作总线
+   ========================================================= */
+const ACTIONS = {};
+
+document.addEventListener("click", e => {
+  const el = e.target.closest("[data-action]");
+  if (!el) return;
+  const fn = ACTIONS[el.dataset.action];
+  if (!fn) return;
+  e.preventDefault();
+  if (el.dataset.noripple === undefined) ripple(el, e);
+  haptic(8);
+  try { fn(el, e); } catch (err) { console.error(err); toast("操作失败：" + err.message); }
+});
+
+/* 长按 */
+let lpTimer = null, lpFired = false;
+document.addEventListener("pointerdown", e => {
+  const el = e.target.closest("[data-longpress]");
+  if (!el) return;
+  lpFired = false;
+  clearTimeout(lpTimer);
+  lpTimer = setTimeout(() => {
+    lpFired = true;
+    haptic(18);
+    const fn = ACTIONS[el.dataset.longpress];
+    if (fn) { try { fn(el, e); } catch (err) { console.error(err); } }
+  }, 460);
+}, true);
+["pointerup", "pointercancel", "pointermove", "scroll"].forEach(ev =>
+  document.addEventListener(ev, () => { clearTimeout(lpTimer); }, true));
+
+ACTIONS.closeModal = () => closeModal();
+ACTIONS.back = () => { if (Router.stack.length) Router.pop(); else Router.home(); };
+ACTIONS.home = () => Router.home();
+ACTIONS.closePanels = () => { closeNC(); closeCC(); };
+ACTIONS.closeMultitask = () => closeMultitask();
+
+/* =========================================================
+   6. 路由
+   ========================================================= */
+const Router = {
+  stack: [],
+  push(key, renderFn) {
+    const el = document.createElement("div");
+    el.className = "page";
+    const rec = { key, render: renderFn, el };
+    const prev = this.top();
+    $("#pages-layer").appendChild(el);
+    this.stack.push(rec);
+    this.paint(rec);
+    void el.offsetWidth;
+    requestAnimationFrame(() => {
+      el.classList.add("in");
+      if (prev) { prev.el.classList.add("behind"); prev.el.style.pointerEvents = "none"; }
+    });
+    return rec;
+  },
+  top() { return this.stack[this.stack.length - 1]; },
+  paint(rec) {
+    rec.el.innerHTML = rec.render();
+    const scroller = rec.el.querySelector(".chat-scroll");
+    if (scroller) scroller.scrollTop = scroller.scrollHeight;
+  },
+  refresh() { const rec = this.top(); if (rec) this.paint(rec); },
+  pop() {
+    const rec = this.stack.pop();
+    if (!rec) return false;
+    rec.el.classList.remove("in");
+    rec.el.classList.add("out");
+    const prev = this.top();
+    if (prev) { prev.el.classList.remove("behind"); prev.el.style.pointerEvents = ""; }
+    setTimeout(() => rec.el.remove(), 320);
+    return true;
+  },
+  home() {
+    this.stack.forEach(r => r.el.remove());
+    this.stack = [];
+  }
+};
+
+/* =========================================================
+   7. 通用渲染辅助
+   ========================================================= */
+function nav(title, opts) {
+  opts = opts || {};
+  return `<div class="nav">
+    <button class="nav-btn" data-action="back" aria-label="返回">${ic("back")}</button>
+    <div class="nav-title">${esc(title)}</div>
+    <div class="nav-right">${opts.right || ""}</div>
+  </div>`;
+}
+function body(html, cls) { return `<div class="page-body ${cls || ""}">${html}</div>`; }
+function emptyState(text) { return `<div class="empty"><span class="big">☁️</span>${esc(text)}</div>`; }
+
+/* =========================================================
+   8. APP 注册表
+   ========================================================= */
+const APPS = {
+  phone:      { name: "电话", icon: "phone", g: ["#5ee07a", "#12a83f"], render: appPhone },
+  wechat:     { name: "微信", icon: "wechat", g: ["#54d75a", "#0e9e2d"], render: appWeChat },
+  messages:   { name: "信息", icon: "chat", g: ["#6ee7a8", "#14a06a"], render: appMessages },
+  camera:     { name: "相机", icon: "camera", g: ["#9aa0a6", "#4b5056"], render: appCamera },
+  forum:      { name: "论坛", icon: "forum", g: ["#7c8cff", "#4a3ed6"], render: appForum },
+  contacts:   { name: "通讯录", icon: "contacts", g: ["#8e9aa8", "#4a5560"], render: appContacts },
+  photos:     { name: "相册", icon: "photos", g: ["#ffd166", "#ff7b54"], render: appPhotos },
+  clock:      { name: "时钟", icon: "clock", g: ["#3a3a3c", "#000000"], render: appClock },
+  calendar:   { name: "日历", icon: "calendar", g: ["#ff6b6b", "#d93025"], render: appCalendar },
+  notes:      { name: "备忘录", icon: "notes", g: ["#ffe066", "#ffb300"], render: appNotes },
+  calculator: { name: "计算器", icon: "calc", g: ["#ff9f0a", "#e07b00"], render: appCalculator },
+  weather:    { name: "天气", icon: "weather", g: ["#4facfe", "#1e6ff5"], render: appWeather },
+  maps:       { name: "地图", icon: "maps", g: ["#6fcf97", "#219653"], render: appMaps },
+  music:      { name: "音乐", icon: "music", g: ["#fc5c7d", "#c62c4f"], render: appMusic },
+  settings:   { name: "设置", icon: "settings", g: ["#a1a1a6", "#6c6c70"], render: appSettings },
+  mail:       { name: "邮件", icon: "mail", g: ["#3aa0ff", "#0a5cd6"], render: appMail },
+  compass:    { name: "指南针", icon: "compass", g: ["#2c2c2e", "#000000"], render: appCompass },
+  store:      { name: "应用商店", icon: "store", g: ["#5ac8fa", "#0a84ff"], render: appStore },
+  themes:     { name: "主题", icon: "themes", g: ["#b06aff", "#7b2ff7"], render: appThemes },
+  gamecenter: { name: "游戏中心", icon: "game", g: ["#ff9f0a", "#ff4757"], render: appGame },
+  browser:    { name: "浏览器", icon: "browser", g: ["#4facfe", "#0b63d6"], render: appBrowser },
+  files:      { name: "文件", icon: "files", g: ["#5ac8fa", "#0a84ff"], render: appFiles },
+  wallet:     { name: "钱包", icon: "wallet", g: ["#34c759", "#0a8a3a"], render: appWallet },
+  health:     { name: "健康", icon: "health", g: ["#ff6b81", "#e0316b"], render: appHealth },
+  recorder:   { name: "录音", icon: "mic", g: ["#ff6b6b", "#c92a2a"], render: appRecorder }
+};
+
+const HOME_PAGES = [
+  ["forum", "contacts", "photos", "clock", "calendar", "notes", "calculator", "weather", "music", "mail", "settings", "compass"],
+  ["maps", "store", "themes", "gamecenter", "browser", "files", "wallet", "health", "recorder"]
+];
+const DOCK = ["phone", "wechat", "messages", "camera"];
+
+function appIconHTML(id) {
+  const a = APPS[id];
+  if (!a) return "";
+  const unread = id === "wechat" ? D.chats.reduce((s, c) => s + (c.unread || 0), 0) : 0;
+  return `<button class="app-icon" data-action="openApp" data-app="${id}" aria-label="打开${esc(a.name)}">
+    <span class="glyph" style="background:linear-gradient(160deg,${a.g[0]},${a.g[1]})">
+      ${ic(a.icon)}${unread ? `<span class="badge">${unread > 99 ? "99+" : unread}</span>` : ""}
+    </span>
+    <span class="label">${esc(a.name)}</span>
+  </button>`;
+}
+
+function openApp(id) {
+  const app = APPS[id];
+  if (!app) { toast("应用不存在"); return; }
+  closeNC(); closeCC(); closeMultitask();
+  Router.push("app:" + id, () => app.render());
+  Story.trigger({ type: "appOpen", app: id });
+}
+ACTIONS.openApp = el => openApp(el.dataset.app);
+
+/* =========================================================
+   9. 电话
+   ========================================================= */
+function appPhone() {
+  const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "0", "#"];
+  return nav("电话") + body(`
+    <div class="pad" style="padding-top:8px">
+      <div style="text-align:center;font-size:30px;font-weight:300;letter-spacing:1px;min-height:44px;padding:6px 0" id="dial-display">${esc(S.dialNumber || "请输入号码")}</div>
+      <div class="calc-pad" style="padding:10px 0">
+        ${keys.map(k => `<button class="calc-key" style="height:58px;border-radius:29px;font-size:22px" data-action="dialKey" data-k="${k}">${k}</button>`).join("")}
+      </div>
+      <div class="row" style="justify-content:center;gap:14px;margin-top:6px">
+        <button class="btn ghost" data-action="dialBack" aria-label="删除一位">⌫</button>
+        <button class="btn primary" style="padding:10px 34px" data-action="dialCall">呼叫</button>
+      </div>
+    </div>
+    <div class="section-title">最近联系人</div>
+    <div class="list">
+      ${D.contacts.slice(0, 6).map(c => `
+        <div class="list-item">
+          <div class="avatar" style="--h:${c.hue}">${esc(c.name.slice(0, 1))}</div>
+          <div class="li-main"><div class="li-title">${esc(c.name)}</div><div class="li-sub">${esc(c.phone)}</div></div>
+          <button class="btn ghost sm" data-action="dialCallTo" data-name="${esc(c.name)}">呼叫</button>
+        </div>`).join("")}
+    </div>
+  `);
+}
+ACTIONS.dialKey = el => { S.dialNumber = (S.dialNumber || "") + el.dataset.k; Router.refresh(); };
+ACTIONS.dialBack = () => { S.dialNumber = (S.dialNumber || "").slice(0, -1); Router.refresh(); };
+ACTIONS.dialCall = () => {
+  if (!S.dialNumber) { toast("请先输入号码"); return; }
+  simulateCall(S.dialNumber);
+  S.dialNumber = "";
+};
+ACTIONS.dialCallTo = el => simulateCall(el.dataset.name);
+
+function simulateCall(who) {
+  modal(`<div style="text-align:center;padding:8px 0">
+    <div class="avatar lg" style="margin:0 auto 14px;--h:200">${esc(String(who).slice(0, 1))}</div>
+    <div style="font-size:18px;font-weight:600">${esc(who)}</div>
+    <div style="font-size:13px;color:var(--text2);margin-top:6px" id="call-status">正在呼叫…</div>
+  </div>`);
+  let sec = 0, connected = false;
+  const st = $("#call-status");
+  const t = setInterval(() => {
+    if (!connected && sec >= 2) { connected = true; st.textContent = "通话中 00:00"; }
+    else if (connected) { sec += 1; st.textContent = "通话中 " + pad(Math.floor(sec / 60)) + ":" + pad(sec % 60); }
+    else sec += 1;
+  }, 1000);
+  const wrap = $("#modal-wrap");
+  const btn = document.createElement("button");
+  btn.className = "btn danger wide";
+  btn.textContent = "挂断";
+  btn.onclick = () => { clearInterval(t); closeModal(); toast("通话已结束"); };
+  wrap.querySelector(".modal").appendChild(btn);
+}
+
+/* =========================================================
+   10. 信息
+   ========================================================= */
+function appMessages() {
+  return nav("信息", { right: `<button class="nav-btn" data-action="newSms" aria-label="新建短信">${ic("plus")}</button>` }) +
+    body(D.sms.length ? `<div class="list" style="margin-top:8px">${D.sms.map(s => {
+      const last = s.msgs[s.msgs.length - 1];
+      return `<div class="list-item" data-action="openSms" data-id="${s.id}">
+        <div class="avatar" style="--h:${s.hue}">${esc(s.name.slice(0, 1))}</div>
+        <div class="li-main">
+          <div class="li-title">${esc(s.name)}</div>
+          <div class="li-sub">${esc(last ? last.text : "暂无消息")}</div>
+        </div>
+        <div class="li-time">${last ? fmtRel(last.ts) : ""}</div>
+      </div>`;
+    }).join("")}</div>` : emptyState("还没有短信"));
+}
+ACTIONS.newSms = () => {
+  promptBox("新建短信", "", v => {
+    const name = v.trim();
+    if (!name) return toast("请输入联系人名称");
+    D.sms.unshift({ id: uid(), name, hue: Math.floor(Math.random() * 360), msgs: [] });
+    save(); Router.refresh(); toast("已创建");
+  });
+};
+ACTIONS.openSms = el => {
+  const id = el.dataset.id;
+  Router.push("sms:" + id, () => smsView(id));
+};
+function smsView(id) {
+  const s = D.sms.find(x => x.id === id);
+  if (!s) return nav("短信") + body(emptyState("会话不存在"));
+  return nav(s.name) +
+    `<div class="page-body chat-scroll" id="sms-scroll">
+      ${s.msgs.length ? s.msgs.map(m => `
+        <div class="bubble-row ${m.from === "me" ? "me" : "them"}">
+          <div class="bubble">${esc(m.text)}<div class="meta">${fmtTime(m.ts)}</div></div>
+        </div>`).join("") : emptyState("还没有消息")}
+    </div>
+    <div class="chat-inputbar">
+      <input class="chat-input" id="sms-input" placeholder="输入短信…" aria-label="短信输入框">
+      <button class="send-btn" data-action="smsSend" data-id="${id}">发送</button>
+    </div>`;
+}
+ACTIONS.smsSend = el => {
+  const s = D.sms.find(x => x.id === el.dataset.id);
+  const inp = $("#sms-input");
+  if (!s || !inp) return;
+  const text = inp.value.trim();
+  if (!text) return;
+  s.msgs.push({ from: "me", text, ts: Date.now() });
+  save(); Router.refresh();
+};
+
+/* =========================================================
+   11. 微信
+   ========================================================= */
+function appWeChat() {
+  const tab = S.wechatTab;
+  let content = "";
+  if (tab === "chats") {
+    const list = D.chats.slice().sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
+    content = `<div class="list" style="margin-top:8px;border-radius:0">
+      ${list.map(c => {
+        const last = c.msgs[c.msgs.length - 1];
+        return `<div class="list-item" data-action="openChat" data-id="${c.id}" data-longpress="chatItemMenu">
+          <div class="avatar" style="--h:${c.hue}">${esc(c.name.slice(0, 1))}</div>
+          <div class="li-main">
+            <div class="li-title">${esc(c.name)}${c.pinned ? ' <span class="tag">置顶</span>' : ""}${c.muted ? ' <span style="font-size:11px;color:var(--text3)">🔕</span>' : ""}</div>
+            <div class="li-sub">${esc(last ? (last.from === "me" ? "我：" : "") + last.text : "暂无消息")}</div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+            <div class="li-time">${last ? fmtRel(last.ts) : ""}</div>
+            ${c.unread ? `<span class="badge" style="position:static">${c.unread}</span>` : ""}
+          </div>
+        </div>`;
+      }).join("") || emptyState("没有会话")}
+    </div>`;
+  } else {
+    content = `<div class="list" style="margin-top:8px;border-radius:0">
+      ${D.contacts.map(c => `<div class="list-item">
+        <div class="avatar" style="--h:${c.hue}">${esc(c.name.slice(0, 1))}</div>
+        <div class="li-main"><div class="li-title">${esc(c.name)}</div><div class="li-sub">${esc(c.note || c.phone)}</div></div>
+        <button class="btn ghost sm" data-action="startChat" data-name="${esc(c.name)}">发消息</button>
+      </div>`).join("")}
+    </div>`;
+  }
+  return `<div class="nav">
+      <div class="nav-right"><button class="nav-btn" data-action="back" aria-label="返回">${ic("back")}</button></div>
+      <div class="nav-title">微信</div>
+      <div class="nav-right"><button class="nav-btn" data-action="newChat" aria-label="新建会话">${ic("plus")}</button></div>
+    </div>
+    <div class="chips" style="padding-top:0">
+      <button class="chip ${tab === "chats" ? "on" : ""}" data-action="wechatTab" data-tab="chats">聊天</button>
+      <button class="chip ${tab === "contacts" ? "on" : ""}" data-action="wechatTab" data-tab="contacts">通讯录</button>
+      <div style="flex:1"></div>
+      <button class="chip" data-action="searchChat">${"搜索"}</button>
+    </div>
+    ${body(content)}`;
+}
+ACTIONS.wechatTab = el => { S.wechatTab = el.dataset.tab; Router.refresh(); };
+ACTIONS.newChat = () => {
+  promptBox("新建会话（输入昵称）", "", v => {
+    const name = v.trim();
+    if (!name) return toast("请输入昵称");
+    const id = uid();
+    D.chats.unshift({ id, name, hue: Math.floor(Math.random() * 360), pinned: false, muted: false, unread: 0, msgs: [] });
+    save(); Router.refresh(); toast("已创建会话");
+  });
+};
+ACTIONS.startChat = el => {
+  const name = el.dataset.name;
+  let c = D.chats.find(x => x.name === name);
+  if (!c) {
+    c = { id: uid(), name, hue: Math.floor(Math.random() * 360), pinned: false, muted: false, unread: 0, msgs: [] };
+    D.chats.unshift(c);
+    save();
+  }
+  Router.push("chat:" + c.id, () => chatView(c.id));
+};
+ACTIONS.searchChat = () => {
+  promptBox("搜索会话", "", v => {
+    const q = v.trim();
+    if (!q) return;
+    const found = D.chats.filter(c => c.name.includes(q) || c.msgs.some(m => (m.text || "").includes(q)));
+    if (!found.length) return toast("没有找到相关会话");
+    sheet(found.map(c => ({ label: c.name, fn: () => Router.push("chat:" + c.id, () => chatView(c.id)) })));
+  });
+};
+ACTIONS.openChat = el => {
+  const id = el.dataset.id;
+  const c = D.chats.find(x => x.id === id);
+  if (c) { c.unread = 0; save(); }
+  Router.push("chat:" + id, () => chatView(id));
+};
+
+ACTIONS.chatItemMenu = el => {
+  const id = el.dataset.id;
+  const c = D.chats.find(x => x.id === id);
+  if (!c) return;
+  sheet([
+    { label: c.pinned ? "取消置顶" : "置顶会话", fn: () => { c.pinned = !c.pinned; save(); Router.refresh(); } },
+    { label: c.muted ? "取消免打扰" : "开启免打扰", fn: () => { c.muted = !c.muted; save(); Router.refresh(); } },
+    { label: "重命名会话", fn: () => promptBox("会话名称", c.name, v => { if (v.trim()) { c.name = v.trim(); save(); Router.refresh(); } }) },
+    { label: "清空聊天记录", fn: () => confirmBox("清空聊天记录", `确定清空与「${c.name}」的全部消息吗？`, "清空", () => { c.msgs = []; save(); Router.refresh(); toast("已清空"); }) },
+    { label: "删除会话", fn: () => confirmBox("删除会话", "删除后不可恢复。", "删除", () => { D.chats = D.chats.filter(x => x.id !== id); save(); Router.refresh(); toast("已删除"); }) }
+  ]);
+};
+
+function chatView(id) {
+  const c = D.chats.find(x => x.id === id);
+  if (!c) return nav("聊天") + body(emptyState("会话不存在"));
+  const rows = c.msgs.map(m => {
+    const mine = m.from === "me";
+    let inner = "";
+    if (m.type === "image") inner = `<div class="bubble img" style="background:linear-gradient(135deg,hsl(210 70% 60%),hsl(280 70% 55%))"></div>`;
+    else if (m.type === "voice") inner = `<div class="bubble">🎙 语音 ${m.text || "0:05"}<div class="meta">${fmtTime(m.ts)}</div></div>`;
+    else if (m.type === "transfer") inner = `<div class="bubble">💸 转账 ¥${esc(m.text)}<div class="meta">${fmtTime(m.ts)}</div></div>`;
+    else inner = `<div class="bubble">${esc(m.text)}<div class="meta">${fmtTime(m.ts)}${mine ? " · " + (m.status || "已发送") : ""}</div></div>`;
+    return `<div class="bubble-row ${mine ? "me" : "them"}" data-longpress="msgMenu" data-cid="${c.id}" data-mid="${m.id}">
+      <div class="avatar sm" style="--h:${mine ? 210 : c.hue}">${mine ? "我" : esc(c.name.slice(0, 1))}</div>
+      ${inner}
+    </div>`;
+  }).join("");
+  return nav(c.name, { right: `<button class="nav-btn" data-action="chatMore" data-id="${c.id}" aria-label="更多">${ic("more")}</button>` }) +
+    `<div class="page-body chat-scroll" id="chat-scroll">
+      ${rows || emptyState("还没有消息，打个招呼吧")}
+    </div>
+    <div class="chat-inputbar">
+      <button class="round" data-action="chatEmoji" data-id="${c.id}" aria-label="表情">😊</button>
+      <button class="round" data-action="chatImage" data-id="${c.id}" aria-label="图片">${ic("image")}</button>
+      <input class="chat-input" id="chat-input" placeholder="输入消息…" aria-label="消息输入框">
+      <button class="send-btn" data-action="chatSend" data-id="${c.id}">发送</button>
+    </div>`;
+}
+
+ACTIONS.chatSend = el => {
+  const c = D.chats.find(x => x.id === el.dataset.id);
+  const inp = $("#chat-input");
+  if (!c || !inp) return;
+  const text = inp.value.trim();
+  if (!text) return;
+  c.msgs.push({ id: uid(), from: "me", type: "text", text, ts: Date.now(), status: "已发送" });
+  save(); Router.refresh();
+  setTimeout(() => {
+    const chat = D.chats.find(x => x.id === c.id);
+    if (!chat || chat.id === "c4" || chat.system) return;
+  }, 1200);
+};
+ACTIONS.chatEmoji = el => {
+  const emojis = ["😊", "😂", "👍", "🎉", "❤️", "🤔", "😭", "🙏", "🌙", "☀️", "🍜", "📷"];
+  sheet(emojis.map(e => ({ label: e, fn: () => {
+    const c = D.chats.find(x => x.id === el.dataset.id);
+    if (!c) return;
+    c.msgs.push({ id: uid(), from: "me", type: "text", text: e, ts: Date.now(), status: "已发送" });
+    save(); Router.refresh();
+  } })));
+};
+ACTIONS.chatImage = el => {
+  const c = D.chats.find(x => x.id === el.dataset.id);
+  if (!c) return;
+  const hue = Math.floor(Math.random() * 360);
+  c.msgs.push({ id: uid(), from: "me", type: "image", text: "", hue, ts: Date.now(), status: "已发送" });
+  save(); Router.refresh(); toast("已发送图片");
+};
+ACTIONS.chatMore = el => {
+  const id = el.dataset.id;
+  const c = D.chats.find(x => x.id === id);
+  if (!c) return;
+  sheet([
+    { label: "编辑联系人昵称", fn: () => promptBox("昵称", c.name, v => { if (v.trim()) { c.name = v.trim(); save(); Router.refresh(); } }) },
+    { label: "清空聊天记录", fn: () => confirmBox("清空聊天记录", "确定清空全部消息吗？", "清空", () => { c.msgs = []; save(); Router.refresh(); toast("已清空"); }) },
+    { label: "转账（模拟）", fn: () => promptBox("转账金额", "100", v => {
+        const n = Number(v);
+        if (!n || n <= 0) return toast("请输入有效金额");
+        c.msgs.push({ id: uid(), from: "me", type: "transfer", text: String(n), ts: Date.now(), status: "已发送" });
+        save(); Router.refresh();
+      }) }
+  ]);
+};
+ACTIONS.msgMenu = el => {
+  const cid = el.dataset.cid, mid = el.dataset.mid;
+  const c = D.chats.find(x => x.id === cid);
+  if (!c) return;
+  const m = c.msgs.find(x => x.id === mid);
+  if (!m) return;
+  const items = [
+    { label: "复制文本", fn: () => {
+        const t = m.text || "";
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(() => toast("已复制"), () => toast("复制失败"));
+        else toast("已复制：" + t.slice(0, 20));
+      } },
+    { label: "编辑消息", fn: () => promptBox("编辑消息", m.text || "", v => {
+        if (m.type !== "text") { m.type = "text"; }
+        m.text = v; save(); Router.refresh(); toast("已保存");
+      }, true) },
+    { label: "删除消息", fn: () => confirmBox("删除消息", "确定删除这条消息吗？", "删除", () => {
+        c.msgs = c.msgs.filter(x => x.id !== mid); save(); Router.refresh(); toast("已删除");
+      }) }
+  ];
+  sheet(items);
+};
+
+/* =========================================================
+   12. 通讯录
+   ========================================================= */
+function appContacts() {
+  return nav("通讯录", { right: `<button class="nav-btn" data-action="addContact" aria-label="新建联系人">${ic("plus")}</button>` }) +
+    body(`<div class="list" style="margin-top:8px">
+      ${D.contacts.map(c => `<div class="list-item" data-action="contactDetail" data-id="${c.id}">
+        <div class="avatar" style="--h:${c.hue}">${esc(c.name.slice(0, 1))}</div>
+        <div class="li-main"><div class="li-title">${esc(c.name)}</div><div class="li-sub">${esc(c.phone)}${c.note ? " · " + esc(c.note) : ""}</div></div>
+        ${ic("back").replace('class="ic "', 'class="ic" style="transform:rotate(180deg);color:var(--text3)"')}
+      </div>`).join("") || emptyState("通讯录为空")}
+    </div>`);
+}
+ACTIONS.addContact = () => {
+  modal(`<h3 class="m-title">新建联系人</h3>
+    <input class="field" id="c-name" placeholder="姓名" style="margin-bottom:8px">
+    <input class="field" id="c-phone" placeholder="电话" style="margin-bottom:8px">
+    <input class="field" id="c-note" placeholder="备注">
+    <div class="m-actions"><button class="btn ghost" data-action="closeModal">取消</button><button class="btn primary" id="c-save">保存</button></div>`);
+  $("#c-save").onclick = () => {
+    const name = $("#c-name").value.trim();
+    if (!name) return toast("请输入姓名");
+    D.contacts.push({ id: uid(), name, phone: $("#c-phone").value.trim() || "—", note: $("#c-note").value.trim(), hue: Math.floor(Math.random() * 360) });
+    save(); closeModal(); Router.refresh(); toast("已添加");
+  };
+};
+ACTIONS.contactDetail = el => {
+  const c = D.contacts.find(x => x.id === el.dataset.id);
+  if (!c) return;
+  Router.push("contact:" + c.id, () => nav(c.name) + body(`
+    <div style="text-align:center;padding:22px 0 8px">
+      <div class="avatar lg" style="margin:0 auto 12px;--h:${c.hue}">${esc(c.name.slice(0, 1))}</div>
+      <div style="font-size:19px;font-weight:600">${esc(c.name)}</div>
+      <div style="color:var(--text2);font-size:13px;margin-top:4px">${esc(c.note || "无备注")}</div>
+    </div>
+    <div class="list" style="margin-top:14px">
+      <div class="list-item"><div class="li-main"><div class="li-title">电话</div><div class="li-sub">${esc(c.phone)}</div></div>
+        <button class="btn ghost sm" data-action="dialCallTo" data-name="${esc(c.name)}">呼叫</button></div>
+      <div class="list-item" data-action="editContact" data-id="${c.id}"><div class="li-main"><div class="li-title">编辑联系人</div></div>${ic("edit")}</div>
+      <div class="list-item" data-action="deleteContact" data-id="${c.id}"><div class="li-main"><div class="li-title" style="color:var(--red)">删除联系人</div></div>${ic("trash")}</div>
+    </div>
+  `));
+};
+ACTIONS.editContact = el => {
+  const c = D.contacts.find(x => x.id === el.dataset.id);
+  if (!c) return;
+  modal(`<h3 class="m-title">编辑联系人</h3>
+    <input class="field" id="c-name" value="${esc(c.name)}" style="margin-bottom:8px">
+    <input class="field" id="c-phone" value="${esc(c.phone)}" style="margin-bottom:8px">
+    <input class="field" id="c-note" value="${esc(c.note || "")}">
+    <div class="m-actions"><button class="btn ghost" data-action="closeModal">取消</button><button class="btn primary" id="c-save">保存</button></div>`);
+  $("#c-save").onclick = () => {
+    c.name = $("#c-name").value.trim() || c.name;
+    c.phone = $("#c-phone").value.trim();
+    c.note = $("#c-note").value.trim();
+    save(); closeModal(); Router.refresh(); toast("已保存");
+  };
+};
+ACTIONS.deleteContact = el => {
+  const id = el.dataset.id;
+  confirmBox("删除联系人", "确定要删除这个联系人吗？", "删除", () => {
+    D.contacts = D.contacts.filter(x => x.id !== id);
+    save(); Router.pop(); Router.refresh(); toast("已删除");
+  });
+};
+
+/* =========================================================
+   13. 相机 / 相册
+   ========================================================= */
+function appCamera() {
+  return nav("相机") + body(`
+    <div class="viewfinder" style="background:linear-gradient(150deg,${S.cameraFront ? "#4a2b6b,#1f6b7a" : "#2b5876,#4e4376"})">
+      <div class="grid-lines"></div>
+      <div style="position:relative;color:rgba(255,255,255,.75);font-size:12px;letter-spacing:2px">取景器模拟</div>
+    </div>
+    <div style="text-align:center">
+      <button class="shutter" data-action="shutter" aria-label="拍照"></button>
+      <div class="row" style="justify-content:center;margin-top:16px;gap:12px">
+        <button class="btn ghost sm" data-action="switchCam">切换镜头</button>
+        <button class="btn ghost sm" data-action="openApp" data-app="photos">查看相册</button>
+      </div>
+    </div>
+    <div style="text-align:center;color:var(--text2);font-size:12px;margin-top:14px">点击快门，照片会保存到相册</div>
+  `);
+}
+ACTIONS.shutter = () => {
+  const hue = Math.floor(Math.random() * 360);
+  D.album.push({ id: uid(), hue, label: "新照片", ts: Date.now() });
+  save(); beep(880, 0.06); toast("已保存到相册");
+};
+ACTIONS.switchCam = () => { S.cameraFront = !S.cameraFront; Router.refresh(); toast(S.cameraFront ? "前置镜头" : "后置镜头"); };
+
+function appPhotos() {
+  return nav("相册") + body(`
+    <div class="photo-grid">
+      ${D.album.map(p => `<div class="photo-cell" data-action="viewPhoto" data-id="${p.id}"><div class="fill" style="--h:${p.hue}"></div></div>`).join("")}
+    </div>
+    ${D.album.length ? "" : emptyState("相册是空的")}
+  `);
+}
+ACTIONS.viewPhoto = el => {
+  const p = D.album.find(x => x.id === el.dataset.id);
+  if (!p) return;
+  modal(`<div style="margin:-20px -20px 0">
+      <div style="height:220px;border-radius:20px 20px 0 0;background:linear-gradient(135deg,hsl(${p.hue} 70% 62%),hsl(${(p.hue + 42) % 360} 70% 50%))"></div>
+    </div>
+    <h3 class="m-title" style="margin-top:14px">${esc(p.label || "照片")}</h3>
+    <p class="m-text">拍摄于 ${fmtDay(p.ts || Date.now())}</p>
+    <div class="m-actions">
+      <button class="btn ghost" data-action="closeModal">关闭</button>
+      <button class="btn danger" id="del-photo">删除</button>
+    </div>`);
+  $("#del-photo").onclick = () => {
+    D.album = D.album.filter(x => x.id !== p.id);
+    save(); closeModal(); Router.refresh(); toast("已删除");
+  };
+};
+
+/* =========================================================
+   14. 时钟
+   ========================================================= */
+function appClock() {
+  const sw = S.stopwatch;
+  const elapsed = sw.running ? sw.elapsed + (Date.now() - sw.start) : sw.elapsed;
+  const tmr = S.timer;
+  return nav("时钟") + body(`
+    <div class="section-title">世界时钟</div>
+    <div class="list">
+      ${[["星屿市", 0], ["东京", 1], ["伦敦", -8], ["纽约", -13]].map(([n, off]) => {
+        const d = new Date(Date.now() + off * HR);
+        return `<div class="list-item"><div class="li-main"><div class="li-title">${n}</div>
+          <div class="li-sub">${off === 0 ? "本地时间" : (off > 0 ? "+" + off : off) + " 小时"}</div></div>
+          <div style="font-size:22px;font-weight:300">${pad(d.getHours())}:${pad(d.getMinutes())}</div></div>`;
+      }).join("")}
+    </div>
+
+    <div class="section-title">秒表</div>
+    <div class="list" style="padding:18px;text-align:center">
+      <div style="font-size:38px;font-weight:250;letter-spacing:1px;font-variant-numeric:tabular-nums">${fmtMs(elapsed)}</div>
+      <div class="row" style="justify-content:center;gap:12px;margin-top:14px">
+        <button class="btn ${sw.running ? "danger" : "primary"}" data-action="swToggle">${sw.running ? "暂停" : "开始"}</button>
+        <button class="btn ghost" data-action="swReset">重置</button>
+      </div>
+    </div>
+
+    <div class="section-title">计时器</div>
+    <div class="list" style="padding:18px;text-align:center">
+      <div style="font-size:38px;font-weight:250;font-variant-numeric:tabular-nums" id="timer-display">${fmtMs(tmr.remain)}</div>
+      <div class="row" style="justify-content:center;gap:10px;margin-top:14px">
+        <button class="btn ghost sm" data-action="timerSet" data-min="1">1分钟</button>
+        <button class="btn ghost sm" data-action="timerSet" data-min="5">5分钟</button>
+        <button class="btn ghost sm" data-action="timerSet" data-min="10">10分钟</button>
+      </div>
+      <div class="row" style="justify-content:center;gap:12px;margin-top:12px">
+        <button class="btn ${tmr.running ? "danger" : "primary"}" data-action="timerToggle">${tmr.running ? "停止" : "开始"}</button>
+        <button class="btn ghost" data-action="timerReset">重置</button>
+      </div>
+    </div>
+  `);
+}
+function fmtMs(ms) {
+  ms = Math.max(0, ms);
+  const m = Math.floor(ms / 60000), s = Math.floor((ms % 60000) / 1000), c = Math.floor((ms % 1000) / 10);
+  return pad(m) + ":" + pad(s) + "." + pad(c);
+}
+ACTIONS.swToggle = () => {
+  const sw = S.stopwatch;
+  if (sw.running) { sw.elapsed += Date.now() - sw.start; sw.running = false; clearInterval(sw.timer); }
+  else {
+    sw.start = Date.now(); sw.running = true;
+    sw.timer = setInterval(() => {
+      const d = $("#timer-display");
+      const el = document.querySelectorAll(".list")[1];
+      if (el) { const disp = el.querySelector("div[style*='font-size:38px']"); if (disp) disp.textContent = fmtMs(sw.elapsed + Date.now() - sw.start); }
+    }, 60);
+  }
+  Router.refresh();
+};
+ACTIONS.swReset = () => {
+  const sw = S.stopwatch;
+  sw.running = false; clearInterval(sw.timer); sw.elapsed = 0;
+  Router.refresh();
+};
+ACTIONS.timerSet = el => {
+  S.timer.remain = Number(el.dataset.min) * 60000;
+  Router.refresh();
+};
+ACTIONS.timerToggle = () => {
+  const t = S.timer;
+  if (t.running) { clearInterval(t.timer); t.running = false; }
+  else {
+    if (t.remain <= 0) t.remain = 60000;
+    t.running = true;
+    const end = Date.now() + t.remain;
+    t.timer = setInterval(() => {
+      t.remain = end - Date.now();
+      const d = document.getElementById("timer-display");
+      if (d) d.textContent = fmtMs(t.remain);
+      if (t.remain <= 0) {
+        clearInterval(t.timer); t.running = false; t.remain = 0;
+        toast("⏰ 计时结束");
+        beep(880, 0.15, 0.08);
+        Router.refresh();
+      }
+    }, 100);
+  }
+  Router.refresh();
+};
+ACTIONS.timerReset = () => {
+  clearInterval(S.timer.timer);
+  S.timer.running = false; S.timer.remain = 0;
+  Router.refresh();
+};
+
+/* =========================================================
+   15. 日历
+   ========================================================= */
+function appCalendar() {
+  const cur = S.calMonth;
+  const y = cur.getFullYear(), m = cur.getMonth();
+  const first = new Date(y, m, 1);
+  const startDow = first.getDay();
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+  const prevDays = new Date(y, m, 0).getDate();
+  const todayStr = isoDate(new Date());
+  const cells = [];
+  for (let i = 0; i < startDow; i++) cells.push({ d: prevDays - startDow + i + 1, dim: true });
+  for (let i = 1; i <= daysInMonth; i++) cells.push({ d: i, dim: false });
+  while (cells.length % 7 !== 0) cells.push({ d: cells.length - startDow - daysInMonth + 1, dim: true });
+
+  const dayEvents = D.events.filter(e => e.date === S.calSelected);
+
+  return nav("日历", {
+    right: `<button class="nav-btn" data-action="addEvent" aria-label="添加事件">${ic("plus")}</button>`
+  }) + body(`
+    <div class="row" style="padding:0 16px 10px">
+      <button class="btn ghost sm" data-action="calPrev">‹</button>
+      <div style="flex:1;text-align:center;font-size:16px;font-weight:600">${y} 年 ${m + 1} 月</div>
+      <button class="btn ghost sm" data-action="calNext">›</button>
+    </div>
+    <div class="month-grid">
+      ${["日", "一", "二", "三", "四", "五", "六"].map(d => `<div class="mday head">${d}</div>`).join("")}
+      ${cells.map(c => {
+        const ds = `${y}-${pad(m + 1)}-${pad(c.d)}`;
+        const isToday = !c.dim && ds === todayStr;
+        const has = D.events.some(e => e.date === ds);
+        return `<div class="mday ${c.dim ? "dim" : ""} ${isToday ? "today" : ""} ${has ? "has" : ""}"
+          data-action="calPick" data-date="${ds}">${c.d}</div>`;
+      }).join("")}
+    </div>
+    <div class="section-title">${esc(S.calSelected)} 的日程</div>
+    <div class="list">
+      ${dayEvents.length ? dayEvents.map(e => `<div class="list-item">
+        <div class="li-main"><div class="li-title">${esc(e.title)}</div><div class="li-sub">${esc(e.time || "全天")}</div></div>
+        <button class="btn ghost sm" data-action="delEvent" data-id="${e.id}">删除</button>
+      </div>`).join("") : `<div class="empty" style="padding:26px">这一天还没有安排</div>`}
+    </div>
+  `);
+}
+ACTIONS.calPrev = () => { S.calMonth = new Date(S.calMonth.getFullYear(), S.calMonth.getMonth() - 1, 1); Router.refresh(); };
+ACTIONS.calNext = () => { S.calMonth = new Date(S.calMonth.getFullYear(), S.calMonth.getMonth() + 1, 1); Router.refresh(); };
+ACTIONS.calPick = el => { S.calSelected = el.dataset.date; Router.refresh(); };
+ACTIONS.addEvent = () => {
+  modal(`<h3 class="m-title">新建日程</h3>
+    <input class="field" id="ev-title" placeholder="标题" style="margin-bottom:8px">
+    <input class="field" id="ev-date" type="date" value="${esc(S.calSelected)}" style="margin-bottom:8px">
+    <input class="field" id="ev-time" type="time" value="09:00">
+    <div class="m-actions"><button class="btn ghost" data-action="closeModal">取消</button><button class="btn primary" id="ev-save">保存</button></div>`);
+  $("#ev-save").onclick = () => {
+    const title = $("#ev-title").value.trim();
+    if (!title) return toast("请输入标题");
+    D.events.push({ id: uid(), title, date: $("#ev-date").value || S.calSelected, time: $("#ev-time").value || "09:00" });
+    save(); closeModal(); Router.refresh(); toast("已添加日程");
+  };
+};
+ACTIONS.delEvent = el => {
+  const id = el.dataset.id;
+  confirmBox("删除日程", "确定删除这条日程吗？", "删除", () => {
+    D.events = D.events.filter(x => x.id !== id);
+    save(); Router.refresh(); toast("已删除");
+  });
+};
+
+/* =========================================================
+   16. 备忘录
+   ========================================================= */
+function appNotes() {
+  return nav("备忘录", { right: `<button class="nav-btn" data-action="newNote" aria-label="新建备忘录">${ic("plus")}</button>` }) +
+    body(`<div class="list" style="margin-top:8px">
+      ${D.notes.map(n => `<div class="list-item" data-action="editNote" data-id="${n.id}">
+        <div class="li-main">
+          <div class="li-title">${esc(n.title || "无标题")}</div>
+          <div class="li-sub">${esc((n.body || "").slice(0, 40))}</div>
+        </div>
+        <div class="li-time">${fmtRel(n.ts)}</div>
+      </div>`).join("") || emptyState("还没有备忘录")}
+    </div>`);
+}
+ACTIONS.newNote = () => {
+  modal(`<h3 class="m-title">新建备忘录</h3>
+    <input class="field" id="nt-title" placeholder="标题" style="margin-bottom:8px">
+    <textarea class="field" id="nt-body" rows="5" placeholder="内容"></textarea>
+    <div class="m-actions"><button class="btn ghost" data-action="closeModal">取消</button><button class="btn primary" id="nt-save">保存</button></div>`);
+  $("#nt-save").onclick = () => {
+    const title = $("#nt-title").value.trim() || "无标题";
+    D.notes.unshift({ id: uid(), title, body: $("#nt-body").value, ts: Date.now() });
+    save(); closeModal(); Router.refresh(); toast("已保存");
+  };
+};
+ACTIONS.editNote = el => {
+  const n = D.notes.find(x => x.id === el.dataset.id);
+  if (!n) return;
+  modal(`<h3 class="m-title">编辑备忘录</h3>
+    <input class="field" id="nt-title" value="${esc(n.title)}" style="margin-bottom:8px">
+    <textarea class="field" id="nt-body" rows="6">${esc(n.body || "")}</textarea>
+    <div class="m-actions">
+      <button class="btn danger" id="nt-del">删除</button>
+      <div class="spacer"></div>
+      <button class="btn primary" id="nt-save">保存</button>
+    </div>`);
+  $("#nt-save").onclick = () => {
+    n.title = $("#nt-title").value.trim() || "无标题";
+    n.body = $("#nt-body").value;
+    n.ts = Date.now();
+    save(); closeModal(); Router.refresh(); toast("已保存");
+  };
+  $("#nt-del").onclick = () => {
+    closeModal();
+    confirmBox("删除备忘录", "确定删除这条备忘录吗？", "删除", () => {
+      D.notes = D.notes.filter(x => x.id !== n.id);
+      save(); Router.refresh(); toast("已删除");
+    });
+  };
+};
+
+/* =========================================================
+   17. 计算器
+   ========================================================= */
+function appCalculator() {
+  const keys = [
+    ["AC", "fn"], ["⌫", "fn"], ["%", "fn"], ["÷", "op"],
+    ["7", ""], ["8", ""], ["9", ""], ["×", "op"],
+    ["4", ""], ["5", ""], ["6", ""], ["−", "op"],
+    ["1", ""], ["2", ""], ["3", ""], ["+", "op"],
+    ["0", "", "span2"], [".", ""], ["=", "op"]
+  ];
+  return nav("计算器") + body(`
+    <div class="calc-display" id="calc-display">${esc(S.calcDisplay)}</div>
+    <div class="calc-pad">
+      ${keys.map(k => `<button class="calc-key ${k[1]}" style="${k[2] === "span2" ? "grid-column:span 2" : ""}"
+        data-action="calcKey" data-k="${esc(k[0])}">${esc(k[0])}</button>`).join("")}
+    </div>
+  `, "");
+}
+ACTIONS.calcKey = el => {
+  const k = el.dataset.k;
+  let expr = S.calcExpr;
+  if (k === "AC") { S.calcExpr = ""; S.calcDisplay = "0"; Router.refresh(); return; }
+  if (k === "⌫") {
+    S.calcExpr = expr.slice(0, -1);
+    S.calcDisplay = S.calcExpr || "0";
+    Router.refresh(); return;
+  }
+  if (k === "=") {
+    try {
+      const result = evalExpr(S.calcExpr);
+      S.calcDisplay = String(result);
+      S.calcExpr = String(result);
+    } catch (e) {
+      S.calcDisplay = "错误";
+      S.calcExpr = "";
+    }
+    Router.refresh(); return;
+  }
+  const map = { "÷": "/", "×": "*", "−": "-" };
+  S.calcExpr += map[k] || k;
+  S.calcDisplay = S.calcExpr;
+  Router.refresh();
+};
+function evalExpr(expr) {
+  if (!expr) return 0;
+  const clean = expr.replace(/%/g, "/100");
+  if (!/^[0-9+\-*/().\s]+$/.test(clean)) throw new Error("表达式非法");
+  const v = Function('"use strict";return (' + clean + ")")();
+  if (typeof v !== "number" || !isFinite(v)) throw new Error("结果非法");
+  return Math.round(v * 1e10) / 1e10;
+}
+
+/* =========================================================
+   18. 天气
+   ========================================================= */
+function appWeather() {
+  const days = ["今天", "明天", "后天", "周四", "周五"];
+  const data = [
+    { icon: "☀️", t: 26, lo: 18, hi: 28, desc: "晴" },
+    { icon: "⛅", t: 24, lo: 17, hi: 26, desc: "多云" },
+    { icon: "🌧", t: 21, lo: 16, hi: 23, desc: "小雨" },
+    { icon: "🌤", t: 25, lo: 18, hi: 27, desc: "晴间多云" },
+    { icon: "☁️", t: 22, lo: 15, hi: 24, desc: "阴" }
+  ];
+  return nav("天气") + body(`
+    <div style="text-align:center;padding:24px 0 10px;background:linear-gradient(180deg,rgba(79,172,254,.16),transparent)">
+      <div style="font-size:15px;color:var(--text2)">星屿市</div>
+      <div style="font-size:64px;font-weight:200;line-height:1.1">26°</div>
+      <div style="font-size:14px;color:var(--text2)">晴 · 最高 28° 最低 18°</div>
+    </div>
+    <div class="list" style="margin-top:12px">
+      ${days.map((d, i) => `<div class="list-item">
+        <div class="li-main"><div class="li-title">${d}</div><div class="li-sub">${data[i].desc}</div></div>
+        <div style="font-size:22px">${data[i].icon}</div>
+        <div style="width:80px;text-align:right;font-size:14px;color:var(--text2)">${data[i].lo}° / ${data[i].hi}°</div>
+      </div>`).join("")}
+    </div>
+    <div class="section-title">生活指数</div>
+    <div class="list">
+      ${[["紫外线", "中等"], ["空气质量", "优 · 32"], ["湿度", "58%"], ["风力", "东南风 2 级"]].map(([k, v]) =>
+        `<div class="list-item"><div class="li-main"><div class="li-title">${k}</div></div><div style="color:var(--text2);font-size:13.5px">${v}</div></div>`).join("")}
+    </div>
+  `);
+}
+
+/* =========================================================
+   19. 地图
+   ========================================================= */
+function appMaps() {
+  return nav("地图") + body(`
+    <div style="margin:8px 16px;height:280px;border-radius:18px;overflow:hidden;position:relative;
+      background:linear-gradient(135deg,#dfeadd,#c9dfe8);">
+      <svg viewBox="0 0 300 280" style="position:absolute;inset:0;width:100%;height:100%">
+        <rect width="300" height="280" fill="#e8f0e6"/>
+        <path d="M0 60 Q80 40 150 80 T300 70" stroke="#a8c8e8" stroke-width="14" fill="none"/>
+        <path d="M0 200 Q100 170 180 210 T300 190" stroke="#f2e6c8" stroke-width="10" fill="none"/>
+        <path d="M60 0 L90 280" stroke="#d9e8d3" stroke-width="8"/>
+        <path d="M210 0 L180 280" stroke="#d9e8d3" stroke-width="8"/>
+        <circle cx="150" cy="130" r="8" fill="#ff3b30"/>
+        <circle cx="150" cy="130" r="16" fill="rgba(255,59,48,.25)"/>
+        <text x="160" y="134" font-size="10" fill="#555">你在这里</text>
+        <circle cx="90" cy="90" r="4" fill="#0a84ff"/>
+        <circle cx="220" cy="180" r="4" fill="#0a84ff"/>
+      </svg>
+    </div>
+    <div class="list" style="margin-top:10px">
+      <div class="list-item"><div class="li-main"><div class="li-title">当前位置</div><div class="li-sub">星屿市 · 云栖区 · 河畔路</div></div></div>
+      <div class="list-item" data-action="mapNav" data-to="镜湖公园"><div class="li-main"><div class="li-title">镜湖公园</div><div class="li-sub">距离 3.2 km</div></div><button class="btn ghost sm">导航</button></div>
+      <div class="list-item" data-action="mapNav" data-to="城市美术馆"><div class="li-main"><div class="li-title">城市美术馆</div><div class="li-sub">距离 1.8 km</div></div><button class="btn ghost sm">导航</button></div>
+      <div class="list-item" data-action="mapNav" data-to="云栖山"><div class="li-main"><div class="li-title">云栖山</div><div class="li-sub">距离 12.6 km</div></div><button class="btn ghost sm">导航</button></div>
+    </div>
+  `);
+}
+ACTIONS.mapNav = el => { toast("已开始导航至 " + el.dataset.to + "（模拟）"); beep(660, 0.07); };
+
+/* =========================================================
+   20. 音乐
+   ========================================================= */
+function appMusic() {
+  const m = D.music;
+  const cur = m.list[m.current] || m.list[0];
+  const pct = cur ? (m.progress / cur.dur) * 100 : 0;
+  return nav("音乐") + body(`
+    <div style="padding:18px 20px;text-align:center">
+      <div style="width:170px;height:170px;margin:0 auto;border-radius:20px;
+        background:linear-gradient(140deg,#fc5c7d,#6a2c70);box-shadow:0 12px 32px rgba(198,44,79,.35);
+        display:grid;place-items:center;color:#fff;font-size:44px">♪</div>
+      <div style="font-size:18px;font-weight:600;margin-top:16px">${esc(cur ? cur.name : "暂无歌曲")}</div>
+      <div style="font-size:13px;color:var(--text2);margin-top:4px">${esc(cur ? cur.artist : "")}</div>
+      <div class="progressbar" style="margin:18px 0 8px"><div class="fill" style="width:${pct}%"></div></div>
+      <div class="row" style="justify-content:space-between;font-size:11.5px;color:var(--text2)">
+        <span id="music-cur">${fmtSec(m.progress)}</span>
+        <span>${fmtSec(cur ? cur.dur : 0)}</span>
+      </div>
+      <div class="row" style="justify-content:center;gap:26px;margin-top:18px">
+        <button class="round" data-action="musicPrev" aria-label="上一首">⏮</button>
+        <button class="round" style="width:62px;height:62px;font-size:24px;background:var(--tint);color:#fff"
+          data-action="musicToggle" aria-label="播放暂停">${m.playing ? ic("pause") : ic("play")}</button>
+        <button class="round" data-action="musicNext" aria-label="下一首">⏭</button>
+      </div>
+    </div>
+    <div class="section-title">播放列表</div>
+    <div class="list">
+      ${m.list.map((s, i) => `<div class="list-item" data-action="musicPick" data-i="${i}">
+        <div class="avatar sm" style="--h:${(i * 70 + 300) % 360}">♪</div>
+        <div class="li-main"><div class="li-title">${esc(s.name)}</div><div class="li-sub">${esc(s.artist)}</div></div>
+        <div class="li-time">${fmtSec(s.dur)}</div>
+      </div>`).join("")}
+    </div>
+  `);
+}
+function fmtSec(s) { s = Math.max(0, Math.floor(s)); return pad(Math.floor(s / 60)) + ":" + pad(s % 60); }
+ACTIONS.musicToggle = () => {
+  const m = D.music;
+  m.playing = !m.playing;
+  clearInterval(S.musicTimer);
+  if (m.playing) {
+    S.musicTimer = setInterval(() => {
+      const cur = D.music.list[D.music.current];
+      if (!cur) return;
+      D.music.progress += 1;
+      if (D.music.progress >= cur.dur) { D.music.progress = 0; D.music.current = (D.music.current + 1) % D.music.list.length; }
+      const bar = document.querySelector(".progressbar .fill");
+      const lbl = document.getElementById("music-cur");
+      if (bar && cur) bar.style.width = ((D.music.progress / D.music.list[D.music.current].dur) * 100) + "%";
+      if (lbl) lbl.textContent = fmtSec(D.music.progress);
+    }, 1000);
+  }
+  Router.refresh();
+};
+ACTIONS.musicNext = () => { D.music.current = (D.music.current + 1) % D.music.list.length; D.music.progress = 0; Router.refresh(); };
+ACTIONS.musicPrev = () => { D.music.current = (D.music.current - 1 + D.music.list.length) % D.music.list.length; D.music.progress = 0; Router.refresh(); };
+ACTIONS.musicPick = el => { D.music.current = Number(el.dataset.i); D.music.progress = 0; D.music.playing = true; Router.refresh(); };
+
+/* =========================================================
+   21. 设置
+   ========================================================= */
+function appSettings() {
+  const st = D.settings;
+  return nav("设置") + body(`
+    <div class="section-title">外观</div>
+    <div class="list">
+      <div class="list-item">
+        <div class="li-main"><div class="li-title">深色模式</div></div>
+        <div class="switch ${st.theme === "dark" ? "on" : ""}" data-action="toggleTheme"></div>
+      </div>
+      <div class="list-item">
+        <div class="li-main"><div class="li-title">字体大小</div><div class="li-sub">${st.fontSize}px</div></div>
+        <div class="row" style="gap:8px">
+          <button class="btn ghost sm" data-action="fontSize" data-d="-1">A-</button>
+          <button class="btn ghost sm" data-action="fontSize" data-d="1">A+</button>
+        </div>
+      </div>
+      <div class="list-item" data-action="openApp" data-app="themes">
+        <div class="li-main"><div class="li-title">壁纸与主题</div><div class="li-sub">当前：壁纸 ${st.wallpaper + 1}</div></div>
+        ${ic("back").replace('class="ic "', 'class="ic" style="transform:rotate(180deg);color:var(--text3)"')}
+      </div>
+    </div>
+
+    <div class="section-title">声音与触感</div>
+    <div class="list">
+      <div class="list-item"><div class="li-main"><div class="li-title">震动反馈</div></div>
+        <div class="switch ${st.vibrate ? "on" : ""}" data-action="toggleVibrate"></div></div>
+      <div class="list-item"><div class="li-main"><div class="li-title">音效</div></div>
+        <div class="switch ${st.sound ? "on" : ""}" data-action="toggleSound"></div></div>
+    </div>
+
+    <div class="section-title">安全</div>
+    <div class="list">
+      <div class="list-item"><div class="li-main"><div class="li-title">锁屏密码</div><div class="li-sub">当前：${st.passcodeOn ? "已开启" : "已关闭"}</div></div>
+        <div class="switch ${st.passcodeOn ? "on" : ""}" data-action="togglePasscode"></div></div>
+      <div class="list-item" data-action="changePasscode">
+        <div class="li-main"><div class="li-title">修改密码</div><div class="li-sub">默认 1234</div></div>
+      </div>
+    </div>
+
+    <div class="section-title">数据</div>
+    <div class="list">
+      <div class="list-item" data-action="exportData"><div class="li-main"><div class="li-title">导出数据</div><div class="li-sub">复制 JSON 到剪贴板</div></div></div>
+      <div class="list-item" data-action="importData"><div class="li-main"><div class="li-title">导入数据</div><div class="li-sub">粘贴 JSON 恢复</div></div></div>
+      <div class="list-item" data-action="resetData"><div class="li-main"><div class="li-title" style="color:var(--red)">恢复默认数据</div></div></div>
+    </div>
+
+    <div class="section-title">关于</div>
+    <div class="list">
+      <div class="list-item" data-action="about"><div class="li-main"><div class="li-title">星屿 OS</div><div class="li-sub">版本 1.0.0</div></div></div>
+      <div class="list-item" id="version-row" data-action="tapVersion"><div class="li-main"><div class="li-title">版本号</div><div class="li-sub">1.0.0 (build 3) · 连点 5 次</div></div></div>
+      <div class="list-item" data-action="openDev"><div class="li-main"><div class="li-title">开发者面板</div><div class="li-sub">${st.devUnlocked ? "已解锁" : "未解锁"}</div></div></div>
+    </div>
+  `);
+}
+ACTIONS.toggleTheme = () => {
+  D.settings.theme = D.settings.theme === "dark" ? "light" : "dark";
+  applyTheme(); save(); Router.refresh();
+};
+ACTIONS.fontSize = el => {
+  D.settings.fontSize = clamp(D.settings.fontSize + Number(el.dataset.d), 13, 19);
+  applyFontSize(); save(); Router.refresh();
+};
+ACTIONS.toggleVibrate = () => { D.settings.vibrate = !D.settings.vibrate; save(); Router.refresh(); haptic(10); };
+ACTIONS.toggleSound = () => { D.settings.sound = !D.settings.sound; save(); Router.refresh(); if (D.settings.sound) beep(720, 0.05); };
+ACTIONS.togglePasscode = () => {
+  D.settings.passcodeOn = !D.settings.passcodeOn;
+  save(); Router.refresh();
+  toast(D.settings.passcodeOn ? "锁屏密码已开启" : "锁屏密码已关闭");
+};
+ACTIONS.changePasscode = () => {
+  promptBox("设置新密码（4 位数字）", D.settings.passcode, v => {
+    if (!/^\d{4}$/.test(v)) return toast("请输入 4 位数字");
+    D.settings.passcode = v; save(); toast("密码已更新");
+  });
+};
+ACTIONS.exportData = () => {
+  const json = JSON.stringify(D, null, 2);
+  modal(`<h3 class="m-title">导出数据</h3>
+    <textarea class="field" rows="8" readonly id="export-area">${esc(json)}</textarea>
+    <div class="m-actions">
+      <button class="btn ghost" data-action="closeModal">关闭</button>
+      <button class="btn primary" id="copy-json">复制</button>
+    </div>`);
+  $("#copy-json").onclick = () => {
+    const ta = $("#export-area");
+    ta.select();
+    try { document.execCommand("copy"); toast("已复制到剪贴板"); }
+    catch (e) { toast("请手动复制"); }
+  };
+};
+ACTIONS.importData = () => {
+  modal(`<h3 class="m-title">导入数据</h3>
+    <p class="m-text">粘贴之前导出的 JSON。导入失败不会影响现有数据。</p>
+    <textarea class="field" rows="8" id="import-area" placeholder="粘贴 JSON…"></textarea>
+    <div class="m-actions">
+      <button class="btn ghost" data-action="closeModal">取消</button>
+      <button class="btn primary" id="do-import">导入</button>
+    </div>`);
+  $("#do-import").onclick = () => {
+    try {
+      const raw = $("#import-area").value.trim();
+      if (!raw) return toast("内容为空");
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object" || !parsed.settings || !Array.isArray(parsed.chats)) {
+        return toast("数据格式不正确");
+      }
+      D = migrate(deepMerge(clone(DEFAULT_DATA), parsed));
+      save(true);
+      applyTheme(); applyFontSize(); applyWallpaper();
+      closeModal(); Router.refresh(); toast("导入成功");
+    } catch (e) {
+      toast("导入失败：" + e.message);
+    }
+  };
+};
+ACTIONS.resetData = () => {
+  confirmBox("恢复默认数据", "这会清除所有聊天、论坛、备忘录等改动，且不可撤销。确定继续吗？", "确定恢复", () => {
+    confirmBox("再次确认", "真的要恢复吗？", "恢复", () => {
+      D = clone(DEFAULT_DATA);
+      save(true);
+      applyTheme(); applyFontSize(); applyWallpaper();
+      Router.home();
+      closeNC(); closeCC();
+      toast("已恢复默认数据");
+    });
+  });
+};
+ACTIONS.about = () => {
+  modal(`<h3 class="m-title">星屿 OS</h3>
+    <p class="m-text">一个完全运行在浏览器本地的小世界。所有数据仅保存在你的设备上，不会联网。</p>
+    <div class="m-actions"><button class="btn primary" data-action="closeModal">好的</button></div>`);
+};
+let versionTaps = 0, versionTimer = null;
+ACTIONS.tapVersion = () => {
+  versionTaps++;
+  clearTimeout(versionTimer);
+  versionTimer = setTimeout(() => { versionTaps = 0; }, 1600);
+  if (versionTaps >= 5) {
+    versionTaps = 0;
+    D.settings.devUnlocked = true; save();
+    toast("开发者面板已解锁");
+    Router.refresh();
+  } else {
+    toast(`再点 ${5 - versionTaps} 次解锁开发者面板`, 900);
+  }
+};
+ACTIONS.openDev = () => {
+  if (!D.settings.devUnlocked) {
+    promptBox("输入开发者密码", "", v => {
+      if (v === "1234") { D.settings.devUnlocked = true; save(); Router.push("dev", devPanel); toast("已解锁"); }
+      else toast("密码错误");
+    });
+    return;
+  }
+  Router.push("dev", devPanel);
+};
+
+/* =========================================================
+   22. 邮件
+   ========================================================= */
+function appMail() {
+  const folders = [["inbox", "收件箱"], ["drafts", "草稿箱"], ["sent", "已发送"]];
+  return nav("邮件", { right: `<button class="nav-btn" data-action="composeMail" aria-label="写邮件">${ic("edit")}</button>` }) +
+    body(`
+      <div class="chips" style="padding-top:4px">
+        ${folders.map(([k, n]) => `<button class="chip ${S.mailFolder === k ? "on" : ""}" data-action="mailFolder" data-f="${k}">${n}</button>`).join("")}
+      </div>
+      <div class="list">
+        ${(() => {
+          const f = S.mailFolder || "inbox";
+          const list = D.mails.filter(m => m.folder === f);
+          if (!list.length) return `<div class="empty">这个文件夹是空的</div>`;
+          return list.map(m => `<div class="list-item" data-action="openMail" data-id="${m.id}">
+            <div class="li-main">
+              <div class="li-title">${m.read ? "" : "● "}${esc(m.subject)}</div>
+              <div class="li-sub">${esc(m.from)} · ${esc((m.body || "").slice(0, 30))}</div>
+            </div>
+            <div class="li-time">${fmtRel(m.ts)}</div>
+          </div>`).join("");
+        })()}
+      </div>
+    `);
+}
+ACTIONS.mailFolder = el => { S.mailFolder = el.dataset.f; Router.refresh(); };
+ACTIONS.openMail = el => {
+  const m = D.mails.find(x => x.id === el.dataset.id);
+  if (!m) return;
+  m.read = true; save();
+  Router.push("mail:" + m.id, () => nav("邮件") + body(`
+    <div style="padding:16px 16px 0">
+      <div style="font-size:18px;font-weight:600;line-height:1.35">${esc(m.subject)}</div>
+      <div style="color:var(--text2);font-size:13px;margin-top:8px">${esc(m.from)} → ${esc(m.to)}</div>
+      <div style="color:var(--text3);font-size:12px;margin-top:3px">${fmtDay(m.ts)} ${fmtTime(m.ts)}</div>
+    </div>
+    <div style="padding:16px;font-size:14.5px;white-space:pre-wrap;line-height:1.6">${esc(m.body)}</div>
+    <div class="row" style="padding:0 16px;gap:10px">
+      <button class="btn ghost" data-action="editMail" data-id="${m.id}">编辑</button>
+      <button class="btn danger" data-action="delMail" data-id="${m.id}">删除</button>
+    </div>
+  `));
+};
+ACTIONS.editMail = el => {
+  const m = D.mails.find(x => x.id === el.dataset.id);
+  if (!m) return;
+  modal(`<h3 class="m-title">编辑邮件</h3>
+    <input class="field" id="ml-subject" value="${esc(m.subject)}" style="margin-bottom:8px">
+    <textarea class="field" id="ml-body" rows="6">${esc(m.body || "")}</textarea>
+    <div class="m-actions"><button class="btn ghost" data-action="closeModal">取消</button><button class="btn primary" id="ml-save">保存</button></div>`);
+  $("#ml-save").onclick = () => {
+    m.subject = $("#ml-subject").value.trim() || m.subject;
+    m.body = $("#ml-body").value;
+    save(); closeModal(); Router.refresh(); toast("已保存");
+  };
+};
+ACTIONS.delMail = el => {
+  const id = el.dataset.id;
+  confirmBox("删除邮件", "确定删除这封邮件吗？", "删除", () => {
+    D.mails = D.mails.filter(x => x.id !== id);
+    save(); Router.pop(); Router.refresh(); toast("已删除");
+  });
+};
+ACTIONS.composeMail = () => {
+  modal(`<h3 class="m-title">写邮件</h3>
+    <input class="field" id="ml-to" placeholder="收件人" style="margin-bottom:8px">
+    <input class="field" id="ml-subject" placeholder="主题" style="margin-bottom:8px">
+    <textarea class="field" id="ml-body" rows="6" placeholder="正文"></textarea>
+    <div class="m-actions">
+      <button class="btn ghost" id="ml-draft">存草稿</button>
+      <button class="btn primary" id="ml-send">发送</button>
+    </div>`);
+  const build = folder => ({
+    id: uid(), folder, from: folder === "drafts" ? "我" : "我",
+    to: $("#ml-to").value.trim() || "未填写",
+    subject: $("#ml-subject").value.trim() || "（无主题）",
+    body: $("#ml-body").value, ts: Date.now(), read: true
+  });
+  $("#ml-draft").onclick = () => { D.mails.unshift(build("drafts")); save(); closeModal(); Router.refresh(); toast("已存入草稿"); };
+  $("#ml-send").onclick = () => { D.mails.unshift(build("sent")); save(); closeModal(); Router.refresh(); toast("已发送（模拟）"); };
+};
+
+/* =========================================================
+   23. 指南针
+   ========================================================= */
+function appCompass() {
+  return nav("指南针") + body(`
+    <div style="padding:30px 0;text-align:center">
+      <div style="width:220px;height:220px;margin:0 auto;border-radius:50%;position:relative;
+        background:radial-gradient(circle,#2c2c2e,#0a0a0a);border:2px solid rgba(255,255,255,.12);
+        display:grid;place-items:center;color:#fff;box-shadow:0 12px 40px rgba(0,0,0,.5)">
+        <div style="position:absolute;inset:12px;border-radius:50%;border:1px dashed rgba(255,255,255,.14)"></div>
+        <div style="font-size:44px;font-weight:250" id="compass-deg">0°</div>
+        <div style="position:absolute;top:16px;font-size:13px;color:#ff3b30;font-weight:600">N</div>
+        <div style="position:absolute;bottom:16px;font-size:12px;opacity:.6">S</div>
+        <div style="position:absolute;left:18px;font-size:12px;opacity:.6">W</div>
+        <div style="position:absolute;right:18px;font-size:12px;opacity:.6">E</div>
+        <div id="compass-needle" style="position:absolute;width:2px;height:88px;background:linear-gradient(180deg,#ff3b30,#fff);
+          transform-origin:bottom center;bottom:50%;transition:transform .6s var(--ease)"></div>
+      </div>
+      <div style="margin-top:18px;color:var(--text2);font-size:13px">星屿市 · 东经 121° · 北纬 31°</div>
+    </div>
+    <div class="list">
+      <div class="list-item"><div class="li-main"><div class="li-title">海拔</div></div><div style="color:var(--text2)">12 m</div></div>
+      <div class="list-item"><div class="li-main"><div class="li-title">磁场强度</div></div><div style="color:var(--text2)">46.8 μT</div></div>
+    </div>
+  `);
+}
+
+/* =========================================================
+   24. 应用商店
+   ========================================================= */
+function appStore() {
+  return nav("应用商店") + body(`
+    <div class="section-title">为你推荐</div>
+    <div class="list">
+      ${D.store.map(a => `<div class="list-item">
+        <div class="avatar" style="--h:${a.hue}">${esc(a.name.slice(0, 1))}</div>
+        <div class="li-main"><div class="li-title">${esc(a.name)}</div><div class="li-sub">${esc(a.desc)} · ${a.size}</div></div>
+        <button class="btn ${a.installed ? "ghost" : "primary"} sm" data-action="installApp" data-id="${a.id}">
+          ${a.installed ? "打开" : "安装"}
+        </button>
+      </div>`).join("")}
+    </div>
+  `);
+}
+ACTIONS.installApp = el => {
+  const a = D.store.find(x => x.id === el.dataset.id);
+  if (!a) return;
+  if (a.installed) { toast(`正在打开「${a.name}」…`); return; }
+  toast(`正在安装「${a.name}」…`);
+  setTimeout(() => { a.installed = true; save(); Router.refresh(); toast(`「${a.name}」安装完成`); }, 900);
+};
+
+/* =========================================================
+   25. 主题
+   ========================================================= */
+const WALLPAPERS = [
+  "linear-gradient(160deg,#5b8def 0%,#8f6ef0 45%,#f0a6ca 100%)",
+  "linear-gradient(160deg,#0f2027 0%,#203a43 50%,#2c5364 100%)",
+  "linear-gradient(160deg,#f6d365 0%,#fda085 100%)",
+  "linear-gradient(160deg,#a1c4fd 0%,#c2e9fb 100%)",
+  "linear-gradient(160deg,#232526 0%,#414345 100%)",
+  "linear-gradient(160deg,#ffecd2 0%,#fcb69f 100%)"
+];
+function appThemes() {
+  return nav("主题") + body(`
+    <div class="section-title">壁纸</div>
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;padding:0 16px">
+      ${WALLPAPERS.map((w, i) => `
+        <button data-action="setWallpaper" data-i="${i}" aria-label="壁纸${i + 1}"
+          style="height:150px;border-radius:16px;background:${w};position:relative;
+          border:3px solid ${D.settings.wallpaper === i ? "var(--tint)" : "transparent"};
+          transition:transform .16s var(--ease)">
+          ${D.settings.wallpaper === i ? `<span style="position:absolute;right:8px;bottom:8px;background:var(--tint);color:#fff;
+            width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-size:13px">✓</span>` : ""}
+        </button>`).join("")}
+    </div>
+    <div class="section-title">主题模式</div>
+    <div class="list">
+      <div class="list-item"><div class="li-main"><div class="li-title">深色模式</div></div>
+        <div class="switch ${D.settings.theme === "dark" ? "on" : ""}" data-action="toggleTheme"></div></div>
+      <div class="list-item"><div class="li-main"><div class="li-title">字体大小</div><div class="li-sub">${D.settings.fontSize}px</div></div>
+        <div class="row" style="gap:8px">
+          <button class="btn ghost sm" data-action="fontSize" data-d="-1">A-</button>
+          <button class="btn ghost sm" data-action="fontSize" data-d="1">A+</button>
+        </div>
+      </div>
+    </div>
+  `);
+}
+ACTIONS.setWallpaper = el => {
+  D.settings.wallpaper = Number(el.dataset.i);
+  applyWallpaper(); save(); Router.refresh(); toast("壁纸已更换");
+};
+
+/* =========================================================
+   26. 游戏中心
+   ========================================================= */
+function appGame() {
+  return nav("游戏中心") + body(`
+    <div style="text-align:center;padding:24px 20px">
+      <div style="font-size:15px;color:var(--text2)">点击气泡 · 20 秒挑战</div>
+      <div style="font-size:44px;font-weight:300;margin:12px 0" id="game-score">${S.game.score}</div>
+      <div style="font-size:13px;color:var(--text2)">最高分：${S.game.best}</div>
+      <div style="position:relative;height:260px;margin-top:16px;border-radius:18px;background:var(--card);
+        overflow:hidden;box-shadow:var(--sh)" id="game-area">
+        <button data-action="gameStart" id="game-start"
+          style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+          background:var(--tint);color:#fff;padding:12px 26px;border-radius:22px;font-weight:600">
+          ${S.game.running ? "进行中…" : "开始游戏"}
+        </button>
+      </div>
+    </div>
+  `);
+}
+ACTIONS.gameStart = () => {
+  if (S.game.running) return;
+  S.game.running = true;
+  S.game.score = 0;
+  const area = $("#game-area");
+  const startBtn = $("#game-start");
+  if (startBtn) startBtn.remove();
+  const scoreEl = $("#game-score");
+  let timeLeft = 20;
+  const timerEl = document.createElement("div");
+  timerEl.style.cssText = "position:absolute;top:8px;left:12px;font-size:12px;color:var(--text2)";
+  timerEl.textContent = "剩余 20s";
+  area.appendChild(timerEl);
+
+  const spawn = () => {
+    if (!S.game.running) return;
+    const b = document.createElement("button");
+    const size = 34 + Math.random() * 22;
+    b.style.cssText = `position:absolute;width:${size}px;height:${size}px;border-radius:50%;
+      background:radial-gradient(circle at 30% 30%,#7ad6ff,#0a84ff);left:${Math.random() * (area.clientWidth - size)}px;
+      top:${Math.random() * (area.clientHeight - size)}px;transition:transform .12s;`;
+    b.onclick = ev => {
+      ev.stopPropagation();
+      if (!S.game.running) return;
+      S.game.score++;
+      if (scoreEl) scoreEl.textContent = S.game.score;
+      beep(880, 0.04);
+      b.remove();
+      spawn();
+    };
+    area.appendChild(b);
+    setTimeout(() => b.remove(), 900);
+  };
+  spawn();
+  const iv = setInterval(spawn, 520);
+  const cd = setInterval(() => {
+    timeLeft--;
+    timerEl.textContent = "剩余 " + timeLeft + "s";
+    if (timeLeft <= 0) {
+      clearInterval(iv); clearInterval(cd);
+      S.game.running = false;
+      S.game.best = Math.max(S.game.best, S.game.score);
+      area.innerHTML = `<div style="position:absolute;inset:0;display:grid;place-items:center;font-size:15px;color:var(--text2)">
+        得分 ${S.game.score} · 点击重新开始</div>`;
+      area.onclick = () => { area.onclick = null; Router.refresh(); };
+      toast("游戏结束，得分 " + S.game.score);
+    }
+  }, 1000);
+};
+
+/* =========================================================
+   27. 浏览器
+   ========================================================= */
+const WEB_PAGES = {
+  home: { title: "星屿导航", html: `<h3>星屿导航</h3><p>这是一个完全离线的模拟浏览器，所有页面都是内置的。</p>
+    <div class="list" style="margin:12px 0">
+      <div class="list-item" data-action="webGo" data-p="news"><div class="li-main"><div class="li-title">今日资讯</div><div class="li-sub">本地模拟内容</div></div></div>
+      <div class="list-item" data-action="webGo" data-p="weather"><div class="li-main"><div class="li-title">天气速览</div><div class="li-sub">晴转多云</div></div></div>
+      <div class="list-item" data-action="webGo" data-p="about"><div class="li-main"><div class="li-title">关于本页面</div><div class="li-sub">说明</div></div></div>
+    </div>` },
+  news: { title: "今日资讯", html: `<h3>今日资讯</h3><p>· 城市美术馆本周推出「光影之间」特展，展出至月底。</p>
+    <p>· 云栖山步道完成修缮，周末前往的市民增多。</p><p>· 镜湖公园新增夜间照明，开放时间延长至 22:00。</p>` },
+  weather: { title: "天气速览", html: `<h3>天气速览</h3><p>今日 26°，晴，东南风 2 级。傍晚有轻微降温，建议带一件薄外套。</p>` },
+  about: { title: "关于", html: `<h3>关于</h3><p>这是一个用于演示的离线浏览器，不会发起任何网络请求。</p>` }
+};
+function appBrowser() {
+  const p = WEB_PAGES[S.webPage || "home"];
+  return nav("浏览器") + body(`
+    <div style="padding:0 16px 10px">
+      <div class="row" style="background:var(--card2);border-radius:12px;padding:8px 12px">
+        <span style="color:var(--text3);font-size:13px">https://</span>
+        <input class="chat-input" style="background:transparent;padding:4px;min-height:0" value="local.xingyu/${S.webPage || "home"}" aria-label="地址栏">
+      </div>
+    </div>
+    <div style="padding:8px 20px;font-size:14.5px;line-height:1.7">${p.html}</div>
+    <div class="row" style="padding:0 16px;gap:10px;margin-top:10px">
+      <button class="btn ghost sm" data-action="webGo" data-p="home">返回首页</button>
+    </div>
+  `);
+}
+ACTIONS.webGo = el => { S.webPage = el.dataset.p; Router.refresh(); };
+
+/* =========================================================
+   28. 文件
+   ========================================================= */
+function appFiles() {
+  const folders = ["全部", ...new Set(D.files.map(f => f.folder))];
+  const list = S.fileFolder === "全部" ? D.files : D.files.filter(f => f.folder === S.fileFolder);
+  return nav("文件") + body(`
+    <div class="chips" style="padding-top:4px">
+      ${folders.map(f => `<button class="chip ${S.fileFolder === f ? "on" : ""}" data-action="fileFolder" data-f="${esc(f)}">${esc(f)}</button>`).join("")}
+    </div>
+    <div class="list">
+      ${list.length ? list.map(f => `<div class="list-item">
+        <div class="avatar sm" style="--h:${(f.name.length * 40) % 360}">${esc(f.type.toUpperCase().slice(0, 2))}</div>
+        <div class="li-main"><div class="li-title">${esc(f.name)}</div><div class="li-sub">${esc(f.folder)} · ${esc(f.size)}</div></div>
+        <button class="btn ghost sm" data-action="openFile" data-id="${f.id}">打开</button>
+      </div>`).join("") : `<div class="empty">这里还没有文件</div>`}
+    </div>
+  `);
+}
+ACTIONS.fileFolder = el => { S.fileFolder = el.dataset.f; Router.refresh(); };
+ACTIONS.openFile = el => {
+  const f = D.files.find(x => x.id === el.dataset.id);
+  if (!f) return;
+  modal(`<h3 class="m-title">${esc(f.name)}</h3>
+    <p class="m-text">类型：${esc(f.type)} · 大小：${esc(f.size)}<br>位置：${esc(f.folder)}</p>
+    <p class="m-text">这是一个模拟文件，无法真正打开内容。</p>
+    <div class="m-actions"><button class="btn primary" data-action="closeModal">知道了</button></div>`);
+};
+
+/* =========================================================
+   29. 钱包 / 健康 / 录音
+   ========================================================= */
+function appWallet() {
+  return nav("钱包") + body(`
+    <div style="margin:12px 16px;padding:22px;border-radius:20px;color:#fff;
+      background:linear-gradient(135deg,#34c759,#0a8a3a);box-shadow:0 10px 26px rgba(10,138,58,.3)">
+      <div style="font-size:12px;opacity:.85">账户余额</div>
+      <div style="font-size:36px;font-weight:300;margin-top:6px">¥ ${D.wallet.balance.toFixed(2)}</div>
+      <div style="font-size:12px;opacity:.85;margin-top:10px">星屿通 · 尾号 8823</div>
+    </div>
+    <div class="row" style="padding:0 16px;gap:10px">
+      <button class="btn primary" style="flex:1" data-action="walletMock" data-t="付款码">付款码</button>
+      <button class="btn ghost" style="flex:1" data-action="walletMock" data-t="收款码">收款码</button>
+    </div>
+    <div class="section-title">最近账单</div>
+    <div class="list">
+      ${D.wallet.bills.map(b => `<div class="list-item">
+        <div class="li-main"><div class="li-title">${esc(b.title)}</div><div class="li-sub">${fmtDay(b.ts)} ${fmtTime(b.ts)}</div></div>
+        <div style="font-size:15px;font-weight:600;color:${b.amount > 0 ? "var(--green)" : "var(--text)"}">
+          ${b.amount > 0 ? "+" : ""}${b.amount.toFixed(2)}
+        </div>
+      </div>`).join("")}
+    </div>
+  `);
+}
+ACTIONS.walletMock = el => toast("「" + el.dataset.t + "」为模拟功能");
+
+function appHealth() {
+  const h = D.health;
+  return nav("健康") + body(`
+    <div style="padding:22px;text-align:center">
+      <div style="width:180px;height:180px;margin:0 auto;border-radius:50%;
+        background:conic-gradient(#ff6b81 ${Math.min(100, h.steps / 100)}%, var(--card2) 0);
+        display:grid;place-items:center;position:relative">
+        <div style="position:absolute;inset:16px;border-radius:50%;background:var(--bg);display:grid;place-items:center">
+          <div>
+            <div style="font-size:32px;font-weight:300">${h.steps}</div>
+            <div style="font-size:12px;color:var(--text2)">步</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="list">
+      ${[["距离", h.distance + " km"], ["消耗", h.calories + " 千卡"], ["睡眠", h.sleep + " 小时"], ["目标", "10000 步"]]
+        .map(([k, v]) => `<div class="list-item"><div class="li-main"><div class="li-title">${k}</div></div>
+          <div style="color:var(--text2);font-size:14px">${v}</div></div>`).join("")}
+    </div>
+    <div style="padding:16px">
+      <button class="btn primary wide" data-action="healthWalk">模拟走 500 步</button>
+    </div>
+  `);
+}
+ACTIONS.healthWalk = () => {
+  D.health.steps += 500;
+  D.health.distance = +(D.health.distance + 0.36).toFixed(1);
+  D.health.calories += 18;
+  save(); Router.refresh(); toast("已记录 500 步");
+};
+
+function appRecorder() {
+  const r = S.recorder;
+  const elapsed = r.running ? Date.now() - r.start : 0;
+  return nav("录音") + body(`
+    <div style="padding:34px 20px;text-align:center">
+      <div style="width:140px;height:140px;margin:0 auto;border-radius:50%;
+        background:${r.running ? "radial-gradient(circle,#ff6b6b,#c92a2a)" : "var(--card)"};
+        display:grid;place-items:center;color:${r.running ? "#fff" : "var(--text)"};font-size:44px;
+        box-shadow:0 10px 30px rgba(201,42,42,.28);transition:background .25s">
+        ${ic("mic")}
+      </div>
+      <div style="font-size:26px;font-weight:300;margin-top:18px;font-variant-numeric:tabular-nums" id="rec-time">
+        ${fmtSec(elapsed / 1000)}
+      </div>
+      <button class="btn ${r.running ? "danger" : "primary"} wide" style="margin-top:18px" data-action="recToggle">
+        ${r.running ? "停止录音" : "开始录音"}
+      </button>
+    </div>
+    <div class="section-title">录音列表</div>
+    <div class="list">
+      ${D.recordings.length ? D.recordings.map(x => `<div class="list-item">
+        <div class="avatar sm" style="--h:0">🎙</div>
+        <div class="li-main"><div class="li-title">${esc(x.name)}</div><div class="li-sub">${esc(x.dur)} · ${fmtRel(x.ts)}</div></div>
+        <button class="btn ghost sm" data-action="delRec" data-id="${x.id}">删除</button>
+      </div>`).join("") : `<div class="empty" style="padding:26px">还没有录音</div>`}
+    </div>
+  `);
+}
+ACTIONS.recToggle = () => {
+  const r = S.recorder;
+  if (!r.running) {
+    r.running = true; r.start = Date.now();
+    r.timer = setInterval(() => {
+      const el = document.getElementById("rec-time");
+      if (el) el.textContent = fmtSec((Date.now() - r.start) / 1000);
+    }, 250);
+  } else {
+    clearInterval(r.timer);
+    const dur = Math.round((Date.now() - r.start) / 1000);
+    r.running = false;
+    D.recordings.unshift({ id: uid(), name: "录音 " + (D.recordings.length + 1), dur: fmtSec(dur), ts: Date.now() });
+    save();
+    toast("已保存录音");
+  }
+  Router.refresh();
+};
+ACTIONS.delRec = el => {
+  D.recordings = D.recordings.filter(x => x.id !== el.dataset.id);
+  save(); Router.refresh(); toast("已删除");
+};
+
+/* =========================================================
+   30. 系统层：主题/壁纸/状态栏/桌面
+   ========================================================= */
+function applyTheme() {
+  document.documentElement.setAttribute("data-theme", D.settings.theme === "dark" ? "dark" : "light");
+}
+function applyFontSize() {
+  const scr = $("#screen");
+  if (scr) scr.style.fontSize = D.settings.fontSize + "px";
+}
+function applyWallpaper() {
+  const wp = $("#wallpaper");
+  if (wp) wp.style.background = WALLPAPERS[D.settings.wallpaper] || WALLPAPERS[0];
+}
+
+function renderHome() {
+  const pages = HOME_PAGES.map(list => `
+    <div class="dpage">
+      ${list === HOME_PAGES[0] ? `
+        <div class="widget">
+          <div class="w-left">
+            <div class="w-time" id="w-time">09:41</div>
+            <div class="w-date" id="w-date">1月1日 周一</div>
+          </div>
+          <div class="w-right">
+            <div class="w-temp">26°</div>
+            <div class="w-city">晴 · 星屿市</div>
+          </div>
+        </div>` : ""}
+      <div class="icon-grid">${list.map(appIconHTML).join("")}</div>
+    </div>`).join("");
+  $("#dpages").innerHTML = pages;
+  $("#dots").innerHTML = HOME_PAGES.map((_, i) => `<span class="dot-ind ${i === S.page ? "on" : ""}"></span>`).join("");
+  $("#dock").innerHTML = DOCK.map(appIconHTML).join("");
+  updatePageTransform();
+}
+function updatePageTransform() {
+  const dp = $("#dpages");
+  if (!dp) return;
+  const w = $("#screen").clientWidth || 390;
+  dp.style.transform = `translateX(${-S.page * w}px)`;
+}
+
+function tickClock() {
+  const d = new Date();
+  const t = pad(d.getHours()) + ":" + pad(d.getMinutes());
+  const dateStr = `${d.getMonth() + 1}月${d.getDate()}日 星期${"日一二三四五六"[d.getDay()]}`;
+  const sbt = $("#sb-time"); if (sbt) sbt.textContent = t;
+  const wt = $("#w-time"); if (wt) wt.textContent = t;
+  const lt = $("#lock-time"); if (lt) lt.textContent = t;
+  const ld = $("#lock-date"); if (ld) ld.textContent = dateStr;
+  const wd = $("#w-date"); if (wd) wd.textContent = dateStr;
+}
+
+/* =========================================================
+   31. 锁屏
+   ========================================================= */
+function renderLockNotifs() {
+  const box = $("#lock-notifs");
+  if (!box) return;
+  box.innerHTML = D.notifications.slice(0, 3).map(n => `
+    <div class="lock-notif"><span class="dot"></span>
+      <div><strong>${esc(n.title)}</strong><div style="opacity:.9;margin-top:2px">${esc(n.body)}</div></div>
+    </div>`).join("");
+}
+
+let pwInput = "";
+function renderKeypad() {
+  const pad = $("#pw-pad");
+  if (!pad) return;
+  const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "⌫"];
+  pad.innerHTML = keys.map(k => k === ""
+    ? `<div class="pw-key blank"></div>`
+    : `<button class="pw-key" data-action="pwKey" data-k="${k}">${k}</button>`).join("");
+  const dots = $("#pw-dots");
+  dots.innerHTML = Array.from({ length: 4 }, (_, i) => `<span class="pw-dot ${i < pwInput.length ? "on" : ""}"></span>`).join("");
+}
+ACTIONS.pwKey = el => {
+  const k = el.dataset.k;
+  if (k === "⌫") { pwInput = pwInput.slice(0, -1); renderKeypad(); return; }
+  if (pwInput.length >= 4) return;
+  pwInput += k;
+  renderKeypad();
+  if (pwInput.length === 4) {
+    setTimeout(() => {
+      if (pwInput === D.settings.passcode) {
+        pwInput = "";
+        $("#lock-keypad").classList.remove("show");
+        unlock();
+      } else {
+        toast("密码错误，请重试");
+        pwInput = "";
+        renderKeypad();
+      }
+    }, 160);
+  }
+};
+ACTIONS.hideKeypad = () => { $("#lock-keypad").classList.remove("show"); pwInput = ""; };
+
+function tryUnlock() {
+  if (D.settings.passcodeOn) {
+    pwInput = "";
+    renderKeypad();
+    $("#lock-keypad").classList.add("show");
+  } else {
+    unlock();
+  }
+}
+function unlock() {
+  S.locked = false;
+  const ls = $("#lock-screen");
+  ls.classList.add("hide");
+  setTimeout(() => ls.classList.add("hidden"), 460);
+  $("#home").classList.remove("hide");
+  Story.trigger({ type: "unlock" });
+}
+
+/* =========================================================
+   32. 通知中心 / 控制中心 / 多任务
+   ========================================================= */
+function renderNotifCenter() {
+  const list = $("#notif-list");
+  if (!list) return;
+  list.innerHTML = D.notifications.length
+    ? D.notifications.map(n => `<div class="notif-card" data-action="notifClick" data-id="${n.id}">
+        <div class="avatar" style="--h:${(n.title.length * 47) % 360}">${esc(n.title.slice(0, 1))}</div>
+        <div style="flex:1;min-width:0">
+          <div class="nt">${esc(n.title)}</div>
+          <div class="nb">${esc(n.body)}</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:3px">${fmtRel(n.ts)}</div>
+        </div>
+        <button class="nav-btn" data-action="delNotif" data-id="${n.id}" aria-label="删除通知">${ic("close")}</button>
+      </div>`).join("")
+    : `<div class="empty" style="padding:30px">没有新通知</div>`;
+}
+function openNC() { renderNotifCenter(); $("#notif-center").classList.add("open"); S.notifOpen = true; closeCC(); }
+function closeNC() { $("#notif-center").classList.remove("open"); S.notifOpen = false; }
+function openCC() { renderCC(); $("#control-center").classList.add("open"); S.ccOpen = true; closeNC(); }
+function closeCC() { $("#control-center").classList.remove("open"); S.ccOpen = false; }
+
+function renderCC() {
+  const st = D.settings;
+  const tiles = [
+    ["wifi", "无线局域网", st.wifi, "toggleWifi"],
+    ["bluetooth", "蓝牙", st.bluetooth, "toggleBt"],
+    ["airplane", "飞行模式", st.airplane, "toggleAirplane"],
+    ["silent", "静音", st.silent, "toggleSilent"],
+    ["torch", "手电筒", st.torch, "toggleTorch"],
+    ["moon", "深色模式", st.theme === "dark", "toggleTheme"]
+  ];
+  $("#cc-body").innerHTML = `
+    <div class="panel-title">控制中心</div>
+    <div class="cc-grid">
+      ${tiles.map(([icon, label, on, action]) => `
+        <button class="cc-tile ${on ? "on" : ""}" data-action="${action}">
+          <span class="ico">${ic(icon)}</span>${label}
+        </button>`).join("")}
+    </div>
+    <div class="slider-wrap">
+      <div class="lbl"><span>亮度</span><span>${st.brightness}%</span></div>
+      <input type="range" min="10" max="100" value="${st.brightness}" style="--p:${st.brightness}%"
+        data-slider="brightness" aria-label="亮度">
+    </div>
+    <div class="slider-wrap">
+      <div class="lbl"><span>音量</span><span>${st.volume}%</span></div>
+      <input type="range" min="0" max="100" value="${st.volume}" style="--p:${st.volume}%"
+        data-slider="volume" aria-label="音量">
+    </div>
+    <div class="row" style="gap:10px;margin-top:6px">
+      <button class="btn ghost sm" data-action="openApp" data-app="settings">打开设置</button>
+      <div class="spacer"></div>
+      <button class="btn sm" data-action="closePanels">关闭</button>
+    </div>`;
+  $$("#cc-body input[type=range]").forEach(inp => {
+    inp.addEventListener("input", () => {
+      D.settings[inp.dataset.slider] = Number(inp.value);
+      inp.style.setProperty("--p", inp.value + "%");
+      const lbl = inp.previousElementSibling;
+      if (lbl) lbl.lastElementChild.textContent = inp.value + "%";
+      if (inp.dataset.slider === "brightness") {
+        const scr = $("#screen");
+        scr.style.filter = `brightness(${0.55 + Number(inp.value) / 100 * 0.45})`;
+      }
+      save();
+    });
+  });
+}
+ACTIONS.toggleWifi = () => { D.settings.wifi = !D.settings.wifi; save(); renderCC(); toast(D.settings.wifi ? "WiFi 已开启" : "WiFi 已关闭"); };
+ACTIONS.toggleBt = () => { D.settings.bluetooth = !D.settings.bluetooth; save(); renderCC(); };
+ACTIONS.toggleAirplane = () => { D.settings.airplane = !D.settings.airplane; save(); renderCC(); };
+ACTIONS.toggleSilent = () => { D.settings.silent = !D.settings.silent; save(); renderCC(); };
+ACTIONS.toggleTorch = () => {
+  D.settings.torch = !D.settings.torch; save(); renderCC();
+  const wp = $("#wallpaper");
+  if (D.settings.torch) {
+    wp.style.filter = "brightness(1.4)";
+    toast("手电筒已开启（模拟）");
+  } else wp.style.filter = "";
+};
+ACTIONS.notifClick = el => {
+  const n = D.notifications.find(x => x.id === el.dataset.id);
+  if (!n) return;
+  closeNC();
+  if (n.app === "wechat") openApp("wechat");
+  else if (n.app === "forum") openApp("forum");
+  else if (n.app === "mail") openApp("mail");
+};
+ACTIONS.delNotif = el => {
+  D.notifications = D.notifications.filter(x => x.id !== el.dataset.id);
+  save(); renderNotifCenter(); renderLockNotifs();
+};
+ACTIONS.clearNotifs = () => {
+  D.notifications = []; save(); renderNotifCenter(); renderLockNotifs(); toast("已清除全部通知");
+};
+
+function openMultitask() {
+  const mt = $("#multitask");
+  if (!Router.stack.length) {
+    mt.innerHTML = `<div class="mt-empty">没有正在运行的应用</div>`;
+  } else {
+    mt.innerHTML = Router.stack.slice().reverse().map((r, i) => {
+      const appId = r.key.replace("app:", "").split(":")[0];
+      const app = APPS[appId];
+      return `<div class="mt-card" data-action="mtResume" data-idx="${Router.stack.length - 1 - i}">
+        <span style="width:44px;height:44px;border-radius:12px;display:grid;place-items:center;color:#fff;
+          background:linear-gradient(160deg,${app ? app.g[0] : "#888"},${app ? app.g[1] : "#555"});font-size:22px">
+          ${ic(app ? app.icon : "code")}</span>
+        <div style="flex:1"><div style="font-weight:600">${esc(app ? app.name : r.key)}</div>
+          <div style="font-size:12px;color:var(--text2)">点击恢复</div></div>
+        <button class="nav-btn" data-action="mtClose" data-idx="${Router.stack.length - 1 - i}" aria-label="关闭">${ic("close")}</button>
+      </div>`;
+    }).join("");
+  }
+  mt.classList.add("open");
+  S.multitask = true;
+}
+function closeMultitask() { $("#multitask").classList.remove("open"); S.multitask = false; }
+ACTIONS.multitask = () => { openMultitask(); };
+ACTIONS.mtResume = el => {
+  const idx = Number(el.dataset.idx);
+  while (Router.stack.length > idx + 1) {
+    const r = Router.stack.pop();
+    r.el.remove();
+  }
+  closeMultitask();
+};
+ACTIONS.mtClose = el => {
+  const idx = Number(el.dataset.idx);
+  const rec = Router.stack[idx];
+  if (rec) {
+    rec.el.remove();
+    Router.stack.splice(idx, 1);
+    const top = Router.top();
+    if (top) { top.el.classList.remove("behind"); top.el.style.pointerEvents = ""; top.el.classList.add("in"); }
+  }
+  openMultitask();
+};
+
+/* =========================================================
+   33. 手势
+   ========================================================= */
+let gp = null;
+const screenEl = () => $("#screen");
+
+screenEl().addEventListener("pointerdown", e => {
+  if (e.target.closest(".modal-wrap, input, textarea, [contenteditable]")) { gp = null; return; }
+  const r = screenEl().getBoundingClientRect();
+  gp = { x0: e.clientX - r.left, y0: e.clientY - r.top, W: r.width, H: r.height };
+}, true);
+
+screenEl().addEventListener("pointerup", e => {
+  if (!gp) return;
+  const r = screenEl().getBoundingClientRect();
+  const dx = (e.clientX - r.left) - gp.x0;
+  const dy = (e.clientY - r.top) - gp.y0;
+  handleGesture(dx, dy, gp);
+  gp = null;
+}, true);
+
+function handleGesture(dx, dy, g) {
+  if (Math.abs(dy) < 12 && Math.abs(dx) < 12) return;
+
+  // 顶部下拉：通知中心 / 控制中心
+  if (g.y0 < 30 && dy > 46 && Math.abs(dy) > Math.abs(dx)) {
+    if (g.x0 > g.W * 0.55) openCC(); else openNC();
+    return;
+  }
+  // 左边缘右滑：返回
+  if (g.x0 < 26 && dx > 62 && Math.abs(dx) > Math.abs(dy) * 1.4) {
+    if (S.notifOpen || S.ccOpen) { closeNC(); closeCC(); return; }
+    if (Router.stack.length) { Router.pop(); return; }
+  }
+  // 底部上滑：回到主屏幕
+  if (g.y0 > g.H - 34 && dy < -46 && Math.abs(dy) > Math.abs(dx)) {
+    if (Router.stack.length) Router.home();
+    return;
+  }
+}
+
+/* 桌面翻页 */
+(function bindPageSwipe() {
+  const dp = $("#dpages");
+  let dragging = false, startX = 0, startY = 0, dx = 0, w = 390;
+  const onDown = e => {
+    if (S.locked) return;
+    if (e.target.closest("input,textarea")) return;
+    dragging = true; startX = e.clientX; startY = e.clientY; dx = 0;
+    w = screenEl().clientWidth || 390;
+    dp.classList.add("dragging");
+    dp.setPointerCapture && dp.setPointerCapture(e.pointerId);
+  };
+  const onMove = e => {
+    if (!dragging) return;
+    dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 20) { dragging = false; dp.classList.remove("dragging"); return; }
+    let base = -S.page * w;
+    let offset = dx;
+    if ((S.page === 0 && dx > 0) || (S.page === HOME_PAGES.length - 1 && dx < 0)) offset = dx * 0.32;
+    dp.style.transform = `translateX(${base + offset}px)`;
+  };
+  const onUp = () => {
+    if (!dragging) { dp.classList.remove("dragging"); return; }
+    dragging = false;
+    dp.classList.remove("dragging");
+    if (dx < -60 && S.page < HOME_PAGES.length - 1) S.page++;
+    else if (dx > 60 && S.page > 0) S.page--;
+    updatePageTransform();
+    $$("#dots .dot-ind").forEach((d, i) => d.classList.toggle("on", i === S.page));
+  };
+  dp.addEventListener("pointerdown", onDown);
+  dp.addEventListener("pointermove", onMove);
+  dp.addEventListener("pointerup", onUp);
+  dp.addEventListener("pointercancel", onUp);
+})();
+
+/* 锁屏滑动 / 点击解锁 */
+(function bindLock() {
+  const ls = $("#lock-screen");
+  let y0 = null;
+  ls.addEventListener("pointerdown", e => {
+    if (e.target.closest("#lock-keypad")) return;
+    y0 = e.clientY;
+  });
+  ls.addEventListener("pointerup", e => {
+    if (y0 === null) return;
+    const dy = e.clientY - y0;
+    if (dy < -36) tryUnlock();
+    y0 = null;
+  });
+  ls.addEventListener("click", e => {
+    if (e.target.closest("button")) return;
+    tryUnlock();
+  });
+})();
+
+/* =========================================================
+   34. 论坛
+   ========================================================= */
+function appForum() {
+  const boards = D.forum.boards;
+  let posts = D.forum.posts.slice();
+  if (S.forumBoard !== "all") posts = posts.filter(p => p.boardId === S.forumBoard);
+  if (S.forumSort === "hot") posts.sort((a, b) => b.likes - a.likes);
+  else posts.sort((a, b) => b.ts - a.ts);
+
+  return nav("论坛", { right: `<button class="nav-btn" data-action="newPost" aria-label="发帖">${ic("plus")}</button>` }) +
+    `<div class="chips">
+      <button class="chip ${S.forumBoard === "all" ? "on" : ""}" data-action="forumBoard" data-b="all">全部</button>
+      ${boards.map(b => `<button class="chip ${S.forumBoard === b.id ? "on" : ""}" data-action="forumBoard" data-b="${b.id}">${esc(b.name)}</button>`).join("")}
+      <div style="flex:1"></div>
+      <button class="chip" data-action="forumSort">${S.forumSort === "hot" ? "最热" : "最新"}</button>
+    </div>` +
+    body(`
+      ${posts.length ? posts.map(p => {
+        const board = boards.find(b => b.id === p.boardId);
+        return `<div class="post-card" data-action="openPost" data-id="${p.id}" data-longpress="postMenu">
+          <div class="post-title">${esc(p.title)}</div>
+          <div class="post-excerpt">${esc((p.content || "").replace(/\n/g, " "))}</div>
+          <div class="post-foot">
+            <span class="tag">${esc(board ? board.name : "综合")}</span>
+            <span>${esc(p.author)}</span>
+            <span>${fmtRel(p.ts)}</span>
+            <div class="spacer"></div>
+            <span class="act-btn ${p.liked ? "on" : ""}" data-action="likePost" data-id="${p.id}">${ic("heart")}${p.likes}</span>
+            <span class="act-btn">${ic("chat")}${p.comments.length}</span>
+          </div>
+        </div>`;
+      }).join("") : emptyState("这个板块还没有帖子，来发第一帖吧")}
+    `);
+}
+ACTIONS.forumBoard = el => { S.forumBoard = el.dataset.b; Router.refresh(); };
+ACTIONS.forumSort = () => { S.forumSort = S.forumSort === "hot" ? "new" : "hot"; Router.refresh(); };
+ACTIONS.likePost = el => {
+  const p = D.forum.posts.find(x => x.id === el.dataset.id);
+  if (!p) return;
+  p.liked = !p.liked;
+  p.likes += p.liked ? 1 : -1;
+  save(); Router.refresh();
+};
+ACTIONS.newPost = () => {
+  const boards = D.forum.boards;
+  modal(`<h3 class="m-title">发布新帖</h3>
+    <select class="field" id="post-board" style="margin-bottom:8px">
+      ${boards.map(b => `<option value="${b.id}">${esc(b.name)}</option>`).join("")}
+    </select>
+    <input class="field" id="post-title" placeholder="标题" style="margin-bottom:8px">
+    <textarea class="field" id="post-content" rows="5" placeholder="写点什么…"></textarea>
+    <div class="m-actions">
+      <button class="btn ghost" data-action="closeModal">取消</button>
+      <button class="btn primary" id="post-save">发布</button>
+    </div>`);
+  $("#post-save").onclick = () => {
+    const title = $("#post-title").value.trim();
+    if (!title) return toast("请输入标题");
+    D.forum.posts.unshift({
+      id: uid(), boardId: $("#post-board").value, title,
+      content: $("#post-content").value || "（无内容）",
+      author: "我", ts: Date.now(), likes: 0, liked: false, faved: false, comments: []
+    });
+    save(); closeModal(); Router.refresh();
+    toast("发布成功");
+    Story.trigger({ type: "post", title });
+  };
+};
+ACTIONS.openPost = el => {
+  const id = el.dataset.id;
+  Router.push("post:" + id, () => postView(id));
+};
+ACTIONS.postMenu = el => {
+  const id = el.dataset.id || (el.closest("[data-id]") && el.closest("[data-id]").dataset.id);
+  const p = D.forum.posts.find(x => x.id === id);
+  if (!p) return;
+  sheet([
+    { label: p.faved ? "取消收藏" : "收藏帖子", fn: () => { p.faved = !p.faved; save(); Router.refresh(); toast(p.faved ? "已收藏" : "已取消收藏"); } },
+    { label: "编辑帖子", fn: () => editPost(p.id) },
+    { label: "删除帖子", fn: () => confirmBox("删除帖子", "删除后不可恢复，确定吗？", "删除", () => {
+        D.forum.posts = D.forum.posts.filter(x => x.id !== p.id);
+        save(); Router.home(); Router.refresh(); toast("已删除");
+      }) }
+  ]);
+};
+function editPost(id) {
+  const p = D.forum.posts.find(x => x.id === id);
+  if (!p) return;
+  modal(`<h3 class="m-title">编辑帖子</h3>
+    <input class="field" id="post-title" value="${esc(p.title)}" style="margin-bottom:8px">
+    <textarea class="field" id="post-content" rows="6">${esc(p.content)}</textarea>
+    <div class="m-actions">
+      <button class="btn ghost" data-action="closeModal">取消</button>
+      <button class="btn primary" id="post-save">保存</button>
+    </div>`);
+  $("#post-save").onclick = () => {
+    p.title = $("#post-title").value.trim() || p.title;
+    p.content = $("#post-content").value;
+    save(); closeModal(); Router.refresh(); toast("已保存");
+  };
+}
+
+function postView(id) {
+  const p = D.forum.posts.find(x => x.id === id);
+  if (!p) return nav("帖子") + body(emptyState("帖子不存在"));
+  const board = D.forum.boards.find(b => b.id === p.boardId);
+  return nav("帖子详情", {
+    right: `<button class="nav-btn" data-action="postMenu2" data-id="${p.id}" aria-label="更多">${ic("more")}</button>`
+  }) + body(`
+    <div style="padding:4px 16px 14px">
+      <div style="font-size:19px;font-weight:700;line-height:1.35">${esc(p.title)}</div>
+      <div class="row" style="margin-top:10px;gap:8px">
+        <div class="avatar sm" style="--h:${(p.author.length * 53) % 360}">${esc(p.author.slice(0, 1))}</div>
+        <div>
+          <div style="font-size:13px;font-weight:600">${esc(p.author)}</div>
+          <div style="font-size:11.5px;color:var(--text3)">${fmtRel(p.ts)} · ${esc(board ? board.name : "综合")}</div>
+        </div>
+        <div class="spacer"></div>
+        <span class="tag">${esc(board ? board.name : "")}</span>
+      </div>
+    </div>
+    <div style="padding:0 16px 16px;font-size:15px;line-height:1.72;white-space:pre-wrap">${esc(p.content)}</div>
+    <div class="row" style="padding:0 16px 14px;gap:14px">
+      <button class="act-btn ${p.liked ? "on" : ""}" data-action="likePost" data-id="${p.id}">${ic("heart")} ${p.likes}</button>
+      <button class="act-btn ${p.faved ? "on" : ""}" data-action="favPost" data-id="${p.id}">${ic("star")} ${p.faved ? "已收藏" : "收藏"}</button>
+      <button class="act-btn" data-action="editPostBtn" data-id="${p.id}">${ic("edit")} 编辑</button>
+      <button class="act-btn" data-action="delPostBtn" data-id="${p.id}">${ic("trash")} 删除</button>
+    </div>
+    <div class="section-title" style="padding-top:0">评论 ${p.comments.length}</div>
+    <div class="list" style="border-radius:0;margin:0">
+      ${p.comments.length ? p.comments.map(c => `
+        <div class="comment" data-longpress="commentMenu" data-pid="${p.id}" data-cid="${c.id}">
+          <div class="avatar sm" style="--h:${(c.author.length * 61) % 360}">${esc(c.author.slice(0, 1))}</div>
+          <div class="body">
+            <div class="name">${esc(c.author)} · ${fmtRel(c.ts)}</div>
+            <div class="txt">${esc(c.text)}</div>
+          </div>
+        </div>`).join("") : `<div class="empty" style="padding:30px">还没有评论，来抢沙发</div>`}
+    </div>
+    <div style="padding:14px 16px">
+      <button class="btn primary wide" data-action="addComment" data-id="${p.id}">写评论</button>
+    </div>
+  `);
+}
+ACTIONS.postMenu2 = el => ACTIONS.postMenu(el);
+ACTIONS.favPost = el => {
+  const p = D.forum.posts.find(x => x.id === el.dataset.id);
+  if (!p) return;
+  p.faved = !p.faved; save(); Router.refresh(); toast(p.faved ? "已收藏" : "已取消收藏");
+};
+ACTIONS.editPostBtn = el => editPost(el.dataset.id);
+ACTIONS.delPostBtn = el => {
+  const id = el.dataset.id;
+  confirmBox("删除帖子", "删除后不可恢复，确定吗？", "删除", () => {
+    D.forum.posts = D.forum.posts.filter(x => x.id !== id);
+    save(); Router.pop(); Router.refresh(); toast("已删除");
+  });
+};
+ACTIONS.addComment = el => {
+  const p = D.forum.posts.find(x => x.id === el.dataset.id);
+  if (!p) return;
+  promptBox("写评论", "", v => {
+    const text = v.trim();
+    if (!text) return toast("评论不能为空");
+    p.comments.push({ id: uid(), author: "我", text, ts: Date.now() });
+    save(); Router.refresh(); toast("评论已发布");
+  }, true);
+};
+ACTIONS.commentMenu = el => {
+  const pid = el.dataset.pid, cid = el.dataset.cid;
+  const p = D.forum.posts.find(x => x.id === pid);
+  if (!p) return;
+  const c = p.comments.find(x => x.id === cid);
+  if (!c) return;
+  sheet([
+    { label: "编辑评论", fn: () => promptBox("编辑评论", c.text, v => {
+        if (!v.trim()) return toast("不能为空");
+        c.text = v.trim(); save(); Router.refresh(); toast("已保存");
+      }, true) },
+    { label: "删除评论", fn: () => confirmBox("删除评论", "确定删除这条评论吗？", "删除", () => {
+        p.comments = p.comments.filter(x => x.id !== cid);
+        save(); Router.refresh(); toast("已删除");
+      }) }
+  ]);
+};
+
+/* =========================================================
+   35. 剧情引擎
+   ========================================================= */
+const Story = {
+  trigger(evt) {
+    try {
+      const st = D.story;
+      if (!st || !st.enabled || !st.story || !Array.isArray(st.story.nodes)) return;
+      st.nodes.forEach(node => {
+        if (!node || !node.on) return;
+        if (node.once && st.done.includes(node.id)) return;
+        if (!this.match(node.on, evt)) return;
+        st.done.push(node.id);
+        st.log.push({ id: node.id, ts: Date.now() });
+        this.run(node.actions || []);
+        save();
+      });
+    } catch (e) { console.warn("剧情执行出错", e); }
+  },
+  match(cond, evt) {
+    if (!cond || cond.type !== evt.type) return false;
+    if (cond.type === "appOpen") return !cond.app || cond.app === evt.app;
+    if (cond.type === "post") return true;
+    if (cond.type === "choice") return true;
+    return true;
+  },
+  run(actions) {
+    (actions || []).forEach(act => {
+      try {
+        if (act.type === "notify") {
+          D.notifications.unshift({ id: uid(), app: act.app || "system", title: act.title || "系统", body: act.body || "", ts: Date.now() });
+          renderLockNotifs();
+          toast(act.title ? act.title + "：" + (act.body || "") : act.body || "新通知");
+        } else if (act.type === "addMessage") {
+          const c = D.chats.find(x => x.id === act.chatId) || D.chats[0];
+          if (c) {
+            c.msgs.push({ id: uid(), from: act.from || "them", type: "text", text: act.text || "", ts: Date.now(), status: "已发送" });
+            c.unread = (c.unread || 0) + 1;
+          }
+        } else if (act.type === "setVar") {
+          D.story.vars[act.key] = act.value;
+        } else if (act.type === "openApp") {
+          setTimeout(() => openApp(act.app), 300);
+        } else if (act.type === "delay") {
+          setTimeout(() => this.run(act.actions || []), act.ms || 1000);
+        } else if (act.type === "choice") {
+          setTimeout(() => {
+            sheet((act.options || []).map(o => ({
+              label: o.text,
+              fn: () => this.run(o.actions || [])
+            })));
+          }, 260);
+        }
+      } catch (e) { console.warn("剧情动作出错", e); }
+    });
+  }
+};
+
+/* =========================================================
+   36. 开发者面板
+   ========================================================= */
+function devPanel() {
+  const st = D.story;
+  return nav("开发者面板") + body(`
+    <div class="section-title">数据</div>
+    <div class="list">
+      <div class="list-item" data-action="devEditData">
+        <div class="li-main"><div class="li-title">编辑全部数据 JSON</div><div class="li-sub">谨慎操作</div></div>
+      </div>
+      <div class="list-item" data-action="exportData"><div class="li-main"><div class="li-title">导出数据</div></div></div>
+      <div class="list-item" data-action="importData"><div class="li-main"><div class="li-title">导入数据</div></div></div>
+      <div class="list-item" data-action="resetData"><div class="li-main"><div class="li-title" style="color:var(--red)">恢复默认数据</div></div></div>
+    </div>
+
+    <div class="section-title">剧情引擎</div>
+    <div class="list">
+      <div class="list-item">
+        <div class="li-main"><div class="li-title">启用剧情</div><div class="li-sub">默认关闭，不影响正常使用</div></div>
+        <div class="switch ${st.enabled ? "on" : ""}" data-action="devToggleStory"></div>
+      </div>
+      <div class="list-item" data-action="devEditStory">
+        <div class="li-main"><div class="li-title">编辑剧情 JSON</div><div class="li-sub">节点 / 条件 / 动作</div></div>
+      </div>
+      <div class="list-item" data-action="devTestStory">
+        <div class="li-main"><div class="li-title">测试触发</div><div class="li-sub">手动触发一次 unlock 事件</div></div>
+      </div>
+      <div class="list-item" data-action="devVars">
+        <div class="li-main"><div class="li-title">查看变量</div><div class="li-sub">${Object.keys(st.vars || {}).length} 个变量</div></div>
+      </div>
+      <div class="list-item" data-action="devResetStory">
+        <div class="li-main"><div class="li-title" style="color:var(--red)">重置剧情状态</div></div>
+      </div>
+    </div>
+
+    <div class="section-title">系统</div>
+    <div class="list">
+      <div class="list-item"><div class="li-main"><div class="li-title">数据版本</div></div>
+        <div style="color:var(--text2)">v${D.v}</div></div>
+      <div class="list-item"><div class="li-main"><div class="li-title">存储键</div></div>
+        <div style="color:var(--text2);font-size:12px">${STORE_KEY}</div></div>
+      <div class="list-item" data-action="devClearStorage">
+        <div class="li-main"><div class="li-title" style="color:var(--red)">清除本地存储</div></div>
+      </div>
+    </div>
+
+    <div class="section-title">剧情 JSON Schema 示例（注释）</div>
+    <div style="margin:0 16px;padding:14px;background:var(--card);border-radius:14px;font-size:12px;
+      color:var(--text2);white-space:pre-wrap;line-height:1.6">{
+  "name": "剧情名称",
+  "nodes": [
+    {
+      "id": "n1",
+      "once": true,
+      "on": { "type": "unlock" },
+      "actions": [
+        { "type": "notify", "title": "提示", "body": "..." },
+        { "type": "addMessage", "chatId": "c2", "from": "them", "text": "..." },
+        { "type": "setVar", "key": "met", "value": true },
+        { "type": "delay", "ms": 2000, "actions": [] },
+        { "type": "choice", "options": [
+            { "text": "选项A", "actions": [] },
+            { "text": "选项B", "actions": [] }
+        ]}
+      ]
+    }
+  ]
+}</div>
+  `);
+}
+ACTIONS.devToggleStory = () => {
+  D.story.enabled = !D.story.enabled;
+  save(); Router.refresh();
+  toast(D.story.enabled ? "剧情引擎已开启" : "剧情引擎已关闭");
+};
+ACTIONS.devEditStory = () => {
+  modal(`<h3 class="m-title">剧情 JSON</h3>
+    <textarea class="field" rows="10" id="story-json">${esc(JSON.stringify(D.story.story, null, 2))}</textarea>
+    <div class="m-actions">
+      <button class="btn ghost" data-action="closeModal">取消</button>
+      <button class="btn primary" id="story-save">保存</button>
+    </div>`);
+  $("#story-save").onclick = () => {
+    try {
+      const v = JSON.parse($("#story-json").value);
+      if (!v || !Array.isArray(v.nodes)) throw new Error("缺少 nodes 数组");
+      D.story.story = v;
+      save(); closeModal(); Router.refresh(); toast("剧情已保存");
+    } catch (e) { toast("JSON 错误：" + e.message); }
+  };
+};
+ACTIONS.devTestStory = () => { Story.trigger({ type: "unlock" }); toast("已触发 unlock 事件"); };
+ACTIONS.devVars = () => {
+  modal(`<h3 class="m-title">剧情变量</h3>
+    <pre style="font-size:12px;color:var(--text2);white-space:pre-wrap;margin:0">${esc(JSON.stringify(D.story.vars || {}, null, 2))}</pre>
+    <div class="m-actions"><button class="btn primary" data-action="closeModal">关闭</button></div>`);
+};
+ACTIONS.devResetStory = () => {
+  confirmBox("重置剧情状态", "只会清除剧情进度与变量，不会影响聊天、论坛等数据。", "重置", () => {
+    D.story.done = [];
+    D.story.vars = {};
+    D.story.log = [];
+    save(); Router.refresh(); toast("剧情状态已重置");
+  });
+};
+ACTIONS.devEditData = () => {
+  modal(`<h3 class="m-title">编辑数据 JSON</h3>
+    <textarea class="field" rows="10" id="dev-json">${esc(JSON.stringify(D, null, 2))}</textarea>
+    <div class="m-actions">
+      <button class="btn ghost" data-action="closeModal">取消</button>
+      <button class="btn primary" id="dev-save">保存</button>
+    </div>`);
+  $("#dev-save").onclick = () => {
+    try {
+      const parsed = JSON.parse($("#dev-json").value);
+      if (!parsed || typeof parsed !== "object") throw new Error("格式错误");
+      D = migrate(deepMerge(clone(DEFAULT_DATA), parsed));
+      save(true); applyTheme(); applyFontSize(); applyWallpaper();
+      closeModal(); Router.refresh(); toast("已保存");
+    } catch (e) { toast("保存失败：" + e.message); }
+  };
+};
+ACTIONS.devClearStorage = () => {
+  confirmBox("清除本地存储", "将会删除本机保存的所有数据。", "清除", () => {
+    try { localStorage.removeItem(STORE_KEY); } catch (e) {}
+    D = clone(DEFAULT_DATA);
+    save(true); applyTheme(); applyFontSize(); applyWallpaper();
+    Router.home(); toast("已清除");
+  });
+};
+
+/* =========================================================
+   37. 初始化
+   ========================================================= */
+function fitPhone() {
+  const p = $("#phone");
+  if (!p) return;
+  if (window.innerWidth <= 520) { p.style.transform = ""; return; }
+  const s = Math.min(1, (window.innerHeight - 40) / 844, (window.innerWidth - 40) / 390);
+  p.style.transform = `scale(${s})`;
+}
+
+function boot() {
+  applyTheme();
+  applyFontSize();
+  applyWallpaper();
+  renderHome();
+  renderLockNotifs();
+  tickClock();
+  setInterval(tickClock, 1000);
+  fitPhone();
+  window.addEventListener("resize", () => { fitPhone(); updatePageTransform(); });
+
+  $("#screen").style.filter = `brightness(${0.55 + D.settings.brightness / 100 * 0.45})`;
+
+  if (D.settings.passcodeOn) {
+    setTimeout(() => toast("提示：默认锁屏密码为 1234", 2600), 800);
+  }
+
+  // 全局错误捕获
+  window.addEventListener("error", e => {
+    console.error(e.error || e.message);
+  });
+  window.addEventListener("unhandledrejection", e => {
+    console.error("Promise 错误", e.reason);
+  });
+}
+
+boot();
+</script>
+</body>
+</html>
